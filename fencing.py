@@ -6,10 +6,10 @@ import datetime
 import random
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="윈펜싱클럽 전력 분석 V31.0", page_icon="🤺", layout="wide")
+st.set_page_config(page_title="윈펜싱클럽 전력 분석 V32.0", page_icon="🤺", layout="wide")
 
-st.title("🤺 윈펜싱클럽 통합 데이터랩 (V31.0 퍼펙트 에디션)")
-st.markdown("V29의 방대한 100+칭호/명전 시스템 완벽 복구 + V30 세이버메트릭스와 다중 시뮬레이터 결합!")
+st.title("🤺 윈펜싱클럽 통합 데이터랩 (V32.0 퍼펙트 에디션)")
+st.markdown("V31 버그 완벽 수정 + 세이버메트릭스 **동일 부수 내 상위 % 비교** 랭킹 시스템 탑재!")
 
 # ================= 🗄️ 데이터베이스 및 기본 설정 =================
 PLAYER_DB_FILE = "fencing_player_db.csv"
@@ -108,13 +108,13 @@ tabs = st.tabs([
 
 # ================= TAB 0: 가이드 & 일정표 =================
 with tabs[0]:
-    st.subheader("📖 윈펜싱 데이터랩 V31.0 얼티밋 에디션")
+    st.subheader("📖 윈펜싱 데이터랩 V32.0 얼티밋 에디션")
     st.markdown("""
-    환영합니다! V29의 디테일과 V30의 세이버메트릭스가 결합된 최강의 분석 시스템입니다.
+    환영합니다! V32는 기존 세이버메트릭스 지표가 얼마나 뛰어난 수치인지 직관적으로 파악할 수 있도록 **'동급 부수 대비 상위 % 랭킹 시스템'**을 도입했습니다.
     
     *   **🏆 종합 랭킹:** 전국 클럽 및 선수의 누적 PT 및 종합 스탯을 확인합니다.
     *   **🏢 클럽 스탯:** 명예의 전당(우승/메달/승률왕) 기록과 전체 로스터, 단체 방명록을 제공합니다.
-    *   **🎮 개인 분석 (세이버메트릭스+100칭호):** 100여 종의 칭호 시스템과 피타고리안 기대승률 등 고급 통계를 결합하여 AI 스카우팅 리포트를 제공합니다.
+    *   **🎮 개인 분석 (세이버메트릭스+100칭호):** 100여 종의 칭호 시스템과 동일 부수 내 상대 랭킹(%)을 결합하여 분석합니다.
     *   **💠 육각형 스탯 & 라이벌 비교:** [대분류 ➡️ 클럽 ➡️ 선수]의 3단계 필터로 빠르고 편하게 선수를 찾을 수 있습니다.
     *   **🔮 시뮬레이터:** 체크박스 다중 선택 방식으로 직관적인 천적/상성 시뮬레이션을 돌립니다.
     """)
@@ -164,7 +164,6 @@ with tabs[2]:
             c3.metric("클럽 평균 승률", f"{h_db['예선_승률(%)'].mean():.1f}%")
             c4.metric("본선 업셋 (자이언트 킬링)", f"{len(h_match[(h_match['단계'] == '본선') & (h_match['승패'] == '승') & (h_match['업셋여부'] == 'Y')])}회")
             
-            # --- 💡 V29 명예의 전당 복구 완료 ---
             st.markdown("---")
             st.markdown(f"### 🏅 {my_team} 명예의 전당 (Top 10)")
             s1, s2, s3, s4 = st.columns(4)
@@ -186,7 +185,6 @@ with tabs[2]:
             s4.error("⚡ **[자이언트 킬러]**\n\n본선 업셋 승리 Top 10")
             for i, row in up_king.iterrows(): s4.write(f"- {row['기준_고유'].split(' (')[0]} ({row['업셋']}회)")
 
-            # --- 💡 V29 전체 로스터 표 복구 완료 ---
             st.divider()
             st.markdown(f"### 📋 {my_team} 소속 선수 전체 로스터")
             roster = h_db.groupby('고유이름').agg(
@@ -218,7 +216,6 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("🎮 개인 정밀 분석 (세이버메트릭스 & 100+ 칭호 시스템)")
     if not global_db.empty:
-        # --- 💡 V29 3단계 필터 완벽 복원 ---
         col1, col2, col3 = st.columns(3)
         with col1:
             divs = ["전체"] + sorted(list(global_db['부수'].dropna().unique()))
@@ -236,7 +233,6 @@ with tabs[3]:
             p_data = global_db[global_db['고유이름'] == sel_player].sort_values('대회일자')
             m_data = global_match[global_match['기준_고유'] == sel_player]
             
-            # --- 💡 V29 시각적 티어 시스템 바 복원 ---
             all_pts = global_db.groupby('고유이름')['레이팅(PT)'].mean()
             my_pt = all_pts.get(sel_player, 0)
             pct = (all_pts > my_pt).mean() * 100 if len(all_pts) > 1 else 50.0
@@ -259,7 +255,7 @@ with tabs[3]:
                 <div style="width: 100%; background-color: #333; border-radius: 10px; height: 12px; margin-top: 10px;">
                     <div style="width: {100-pct}%; background-color: {t_color}; height: 100%; border-radius: 10px;"></div>
                 </div>
-                <div style="text-align:right; font-size:12px; color:#888; margin-top:5px;">현재 생태계 상위 {pct:.1f}% 위치</div>
+                <div style="text-align:right; font-size:12px; color:#888; margin-top:5px;">현재 생태계 전체 상위 {pct:.1f}% 위치</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -279,29 +275,81 @@ with tabs[3]:
             main_advances = len(p_data[p_data['본선_순위(숫자)'] > 0])
             pass_rate = (main_advances / tot_tournaments * 100) if tot_tournaments > 0 else 0.0
             
+            # 🔥 무조건 새가슴이 되지 않도록 본선 승률 예외처리
             main_m = m_data[m_data['단계'] == '본선']
-            main_wins = len(main_m[main_m['승패'] == '승'])
             main_total = len(main_m)
-            main_wr = (main_wins / main_total * 100) if main_total > 0 else 0.0
-            choke_index = actual_wr - main_wr 
+            if main_total > 0:
+                main_wins = len(main_m[main_m['승패'] == '승'])
+                main_wr = (main_wins / main_total * 100)
+                choke_index = actual_wr - main_wr 
+            else:
+                main_wr = None
+                choke_index = None
             
             tot_wins = p_data['예선_승'].sum()
             sweats = len(m_data[(m_data['단계']=='예선') & (m_data['진땀승']=='Y')])
             dom_rate = ((tot_wins - sweats) / tot_wins * 100) if tot_wins > 0 else 0.0
 
+            # --- 💡 세이버메트릭스 동급 부수 내 상위 % (백분위) 고속 연산 ---
+            my_div = p_data['부수'].iloc[-1]
+            div_p = global_db[global_db['부수'] == my_div]
+            div_m = global_match[global_match['기준_고유'].isin(div_p['고유이름'].unique())]
+            
+            # 예선 통과율 계산
+            div_tourneys = div_p.groupby('고유이름').size()
+            div_advances = div_p[div_p['본선_순위(숫자)'] > 0].groupby('고유이름').size()
+            div_pass_rate = (div_advances.reindex(div_tourneys.index, fill_value=0) / div_tourneys) * 100
+            
+            # 피타고리안 계산
+            div_sc = div_p.groupby('고유이름')['예선_득점'].sum()
+            div_ls = div_p.groupby('고유이름')['예선_실점'].sum()
+            div_denom = (div_sc**2) + (div_ls**2)
+            div_pyth = ((div_sc**2) / div_denom * 100).fillna(50.0)
+            
+            # 본선 승률 계산
+            div_main_m = div_m[div_m['단계'] == '본선']
+            div_main_wins = div_main_m[div_main_m['승패'] == '승'].groupby('기준_고유').size()
+            div_main_total = div_main_m.groupby('기준_고유').size()
+            div_main_wr = (div_main_wins.reindex(div_main_total.index, fill_value=0) / div_main_total) * 100
+            
+            # 압도율 계산
+            div_tot_wins = div_p.groupby('고유이름')['예선_승'].sum()
+            div_sweats = div_m[(div_m['단계'] == '예선') & (div_m['진땀승'] == 'Y')].groupby('기준_고유').size()
+            div_dom = ((div_tot_wins - div_sweats.reindex(div_tot_wins.index, fill_value=0)) / div_tot_wins * 100).fillna(0.0)
+            
+            def get_percentile(series, val, higher_is_better=True):
+                if series.empty or pd.isna(val): return "비교불가"
+                if higher_is_better:
+                    pct = (series > val).mean() * 100
+                else:
+                    pct = (series < val).mean() * 100
+                return f"상위 {max(1, int(pct))}%"
+
+            pct_pass = get_percentile(div_pass_rate, pass_rate)
+            pct_pyth = get_percentile(div_pyth, pythagorean)
+            pct_dom = get_percentile(div_dom, dom_rate)
+            pct_main_wr = get_percentile(div_main_wr, main_wr) if main_wr is not None else "비교불가"
+
             # --- 💡 세이버메트릭스 지표 설명문 추가 ---
-            st.markdown("#### 🔬 세이버메트릭스 (고급 통계 지표)")
-            st.info("""
-            **💡 세이버메트릭스 용어 설명**
-            - **피타고리안 기대승률**: 득점/실점 비율로 산출한 '이론적으로 가장 이상적인 승률'입니다. (실제 승률 > 기대 승률 = 접전에 강함, 운이 좋음 / 실제 승률 < 기대 승률 = 접전에 약함, 불운함)
-            - **새가슴 지수**: 예선 승률에서 본선 승률을 뺀 수치입니다. (플러스(+)면 단판 토너먼트에서 다리가 굳음을 의미, 마이너스(-)면 본선에서 오히려 퍼포먼스가 오르는 강심장을 의미)
-            - **압도율 (Dominance)**: 승리한 경기 중 1점차 진땀승을 제외한, 상대를 넉넉한 점수차로 완벽히 꺾어버린 '완승'의 비율입니다.
+            st.markdown("#### 🔬 세이버메트릭스 (고급 통계 지표 및 동일 부수 비교)")
+            st.info(f"""
+            **💡 세이버메트릭스 용어 설명 (기준: 가장 최근에 출전한 [{my_div}] 참가자 그룹 대상)**
+            - **상위 % 비교**: 각 스탯 제목 괄호 안의 퍼센트는 **동일 부수에 출전한 선수들 중 내가 전체 상위 몇 %**인지 객관적으로 보여주는 지표입니다.
+            - **피타고리안 기대승률**: 득점/실점 비율로 산출한 '이론적 기대 승률' (실제 승률 > 기대 승률 = 접전에 강함/운이 좋음)
+            - **새가슴 지수**: (예선 승률 - 본선 승률). 단판 토너먼트 특성상 1패를 안고 탈락하기에 지수가 높게(플러스로) 측정되는 것이 정상입니다. 따라서 **본선을 최소 3번 이상 치르고 하락폭이 30%p 이상일 때만** 새가슴 징크스로 판정합니다.
+            - **압도율 (Dominance)**: 승리한 경기 중 1점차 진땀승을 제외한 넉넉한 '완승'의 비율입니다.
             """)
+            
             s1, s2, s3, s4 = st.columns(4)
-            s1.metric("예선 통과율", f"{pass_rate:.1f}%", f"{main_advances}회 본선 진출")
-            s2.metric("기대 승률 (피타고리안)", f"{pythagorean:.1f}%", f"운/클러치 지수: {luck_index:+.1f}%p")
-            s3.metric("예선 ➡ 본선 승률", f"{actual_wr:.0f}% ➡ {main_wr:.0f}%", f"새가슴 지수: {choke_index:+.1f}%p", delta_color="inverse")
-            s4.metric("압도율 (완승 비율)", f"{dom_rate:.1f}%", f"평균 득실 마진: {avg_margin:+.1f}점")
+            s1.metric(f"예선 통과율 ({pct_pass})", f"{pass_rate:.1f}%", f"{main_advances}회 본선 진출", delta_color="off")
+            s2.metric(f"기대 승률 ({pct_pyth})", f"{pythagorean:.1f}%", f"운/클러치 지수: {luck_index:+.1f}%p", delta_color="off")
+            
+            if main_wr is not None:
+                s3.metric(f"예선 ➡ 본선 승률 ({pct_main_wr})", f"{actual_wr:.0f}% ➡ {main_wr:.0f}%", f"새가슴 지수: {choke_index:+.1f}%p", delta_color="inverse")
+            else:
+                s3.metric("예선 ➡ 본선 승률", f"{actual_wr:.0f}% ➡ N/A", f"본선 진출 기록 없음", delta_color="off")
+                
+            s4.metric(f"압도율 ({pct_dom})", f"{dom_rate:.1f}%", f"평균 득실 마진: {avg_margin:+.1f}점", delta_color="off")
 
             # --- AI 3줄 평 제너레이터 ---
             st.markdown("#### 🤖 AI 스카우터 리포트 (3줄 요약)")
@@ -315,8 +363,9 @@ with tabs[3]:
 
             if luck_index >= 15: l2 = random.choice(["기대 승률보다 훨씬 높은 실제 성적! 1점 차 피말리는 접전에서 묘하게 승리를 챙기는 클러치 달인입니다.", "운도 실력! 결정적인 순간에 발휘되는 엄청난 집중력과 승운이 따르는 선수입니다."])
             elif luck_index <= -15: l2 = random.choice(["스탯 내용은 훌륭하나 결과가 아쉬운 불운의 아이콘. 승운만 조금 터져주면 성적이 폭발할 것입니다.", "득실 마진은 좋으나 중요한 순간 1점을 내어주는 경향이 있습니다. 뒷심 극복이 관건입니다!"])
-            elif choke_index <= -15 and pass_rate > 0: l2 = random.choice(["예선에서는 힘을 빼고 있다가 토너먼트에 진입하면 오히려 폼이 올라가는 '본선 여포' 기질이 다분합니다.", "큰 무대 체질! 지면 탈락하는 단판 승부에서 극강의 집중력을 발휘하는 승부사입니다."])
-            elif choke_index >= 20 and pass_rate > 0: l2 = random.choice(["예선 생태계의 포식자! 다만 본선 단판 승부에서의 '새가슴' 기질을 극복하는 것이 최우선 과제입니다.", "예선 폼은 완벽하나 본선 첫 판에 굳어버리는 징크스가 있습니다. 마인드 컨트롤 훈련이 필요합니다."])
+            # 🔥 무분별한 새가슴 판정을 막기 위한 밸런스 패치
+            elif choke_index is not None and main_advances >= 3 and choke_index <= -15 and pass_rate > 0: l2 = random.choice(["예선에서는 힘을 빼고 있다가 토너먼트에 진입하면 오히려 폼이 올라가는 '본선 여포' 기질이 다분합니다.", "큰 무대 체질! 지면 탈락하는 단판 승부에서 극강의 집중력을 발휘하는 승부사입니다."])
+            elif choke_index is not None and main_advances >= 3 and choke_index >= 30 and pass_rate > 0: l2 = random.choice(["예선 생태계의 포식자! 다만 본선 단판 승부에서의 '새가슴' 기질을 극복하는 것이 최우선 과제입니다.", "예선 폼은 완벽하나 본선 첫 판에 굳어버리는 징크스가 있습니다. 마인드 컨트롤 훈련이 필요합니다."])
             else: l2 = random.choice(["매 경기 기복 없이 자신만의 확고한 템포로 묵묵하게 검을 휘두르는 안정적인 멘탈의 소유자입니다.", "흔들림 없는 평정심을 바탕으로 본인의 기량을 거짓 없이 정직하게 100% 발휘합니다."])
 
             if age_group == "초등부": l3 = random.choice(["무궁무진한 잠재력을 바탕으로 펜싱계의 미래를 밝힐 특급 신동입니다!", "스펀지처럼 기술을 흡수하며 하루가 다르게 폭풍 성장하고 있는 무서운 유소년 유망주입니다."])
@@ -328,7 +377,7 @@ with tabs[3]:
             random.seed()
             st.divider()
 
-            # --- 💡 V29의 방대한 100+종 칭호(업적) 시스템 완벽 복구 ---
+            # --- 💡 방대한 100+종 칭호(업적) 시스템 완벽 복구 ---
             titles = []
             golds = len(p_data[p_data['본선_순위(숫자)'] == 1])
             silvers = len(p_data[p_data['본선_순위(숫자)'] == 2])
@@ -395,13 +444,14 @@ with tabs[3]:
             elif 0 < avg_sc <= 2.5 and 0 < avg_ls <= 2.5 and tot_matches >= 5: titles.append(("🐢 늪지대 장인 (가시갑옷)", "극한의 짠물 펜싱."))
             elif avg_ls >= 4.5 and tot_matches >= 5: titles.append(("💸 자선사업가 (자동문)", "수비가 너무 후한 나머지 점수를 마구 베풉니다."))
 
-            # [세이버메트릭스 연동 칭호 (V30)]
+            # [세이버메트릭스 연동 칭호 조건 완화 적용 (V30)]
             if pythagorean >= 75: titles.append(("📐 피타고라스의 악마", "기대 승률 75% 이상. 완벽한 지표의 소유자."))
             if luck_index >= 15: titles.append(("🍀 럭키 가이 (클러치)", "실력 지표보다 실제 승률이 훨씬 높은 기적의 사나이."))
             if luck_index <= -15: titles.append(("☔ 억까의 아이콘", "지표는 깡패인데 승운이 안 따름. 조만간 떡상 예정."))
             if dom_rate >= 80 and tot_wins >= 5: titles.append(("🚀 학살자 (TDR)", "진땀승 따윈 없다. 오직 완벽한 완승뿐!"))
-            if choke_index >= 25 and pass_rate > 0: titles.append(("🥶 본선 자동문 (새가슴)", "예선은 여포인데, 토너먼트만 가면 다리가 굳음."))
-            if choke_index <= -20 and pass_rate > 0: titles.append(("🥷 다크템플러", "본선만 가면 눈빛이 바뀌는 토너먼트의 암살자."))
+            # 🔥 여기서도 새가슴 기준 상향
+            if choke_index is not None and choke_index >= 30 and main_advances >= 3: titles.append(("🥶 본선 자동문 (새가슴)", "예선은 여포인데, 토너먼트만 가면 다리가 굳음."))
+            if choke_index is not None and choke_index <= -20 and main_advances >= 3: titles.append(("🥷 다크템플러", "본선만 가면 눈빛이 바뀌는 토너먼트의 암살자."))
 
             # [클러치 & 연령 / 대진운 / 짬바 (V29)]
             if up_cnt >= 8: titles.append(("🏴‍☠️ 혁명군 수장 (드래곤)", "업셋 8회 이상! 시드 체계를 완벽히 붕괴시키는 파괴자."))
@@ -409,7 +459,8 @@ with tabs[3]:
             if sweats >= 10: titles.append(("🥶 얼음 심장 (타짜)", f"1점 차 진땀승만 {sweats}번. 심박수가 변하지 않는 멘탈 갑."))
             
             if tot_matches >= 150: titles.append(("🦾 사이버네틱 펜서", "예선 150경기 소화! 펜싱 기계 그 자체."))
-            elif num_tourneys >= 15: titles.append(("🏛️ 살아있는 화석 (고인물)", f"{num_tourneys}번 대회 개근! 클럽 역사의 산증인."))
+            # 🔥 에러가 나던 변수명 `num_tourneys`를 `tot_tournaments`로 고쳤습니다.
+            elif tot_tournaments >= 15: titles.append(("🏛️ 살아있는 화석 (고인물)", f"{tot_tournaments}번 대회 개근! 클럽 역사의 산증인."))
             
             if avg_luck >= 42 and tot_tournaments >= 2: titles.append(("☠️ 억까의 신", f"평균 대진운 {avg_luck:.1f}pt. 왜 나한테만 우승후보가 걸리는가?"))
             elif avg_luck <= 15 and tot_tournaments >= 2: titles.append(("🍯 양봉업자 (꿀대진)", f"평균 대진운 {avg_luck:.1f}pt. 꿀대진 냄새를 기가 막히게 맡습니다."))

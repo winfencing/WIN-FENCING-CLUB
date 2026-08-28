@@ -8,10 +8,10 @@ import random
 import plotly.graph_objects as go
 import plotly.express as px
 
-st.set_page_config(page_title="윈펜싱클럽 전력 분석 V36.0", page_icon="🤺", layout="wide")
+st.set_page_config(page_title="윈펜싱클럽 전력 분석 V38.0", page_icon="🤺", layout="wide")
 
-st.title("🤺 윈펜싱클럽 통합 데이터랩 (V36.0 밸런스 패치)")
-st.markdown("본선 15점 난이도 보정 + 무한 칭호 스택 복구 + 기록 누락 파서 수술 완료!")
+st.title("🤺 윈펜싱클럽 통합 데이터랩 (V38.0 직관성 패치)")
+st.markdown("세이버메트릭스 해설/등급제 + 일정표 에디터 탑재 + 에러 완벽 픽스!")
 
 # ================= 🗄️ 데이터베이스 및 기본 설정 =================
 PLAYER_DB_FILE = "fencing_player_db.csv"
@@ -45,13 +45,13 @@ with st.sidebar:
             
     st.divider()
     if st.session_state.admin_auth:
-        st.warning("⚠️ 랭킹 꼬임 / 본선 기록 누락 복구 시!")
+        st.warning("⚠️ 랭킹 꼬임 / 연도(2026) 버그 리셋 시")
         if st.button("🗑️ 성적 데이터 완전 초기화"):
             if os.path.exists(PLAYER_DB_FILE): os.remove(PLAYER_DB_FILE)
             if os.path.exists(MATCH_DB_FILE): os.remove(MATCH_DB_FILE)
             for key in ['player_db', 'match_db']:
                 if key in st.session_state: del st.session_state[key]
-            st.success("성적 리셋 완료! (프로필 유지) 이제 엑셀을 다시 올리시면 본선 스코어가 100% 잡힙니다.")
+            st.success("성적 리셋 완료! (프로필 및 일정표 유지) 엑셀을 다시 올리시면 정상 적용됩니다.")
             st.rerun()
 
 # DB 로딩 함수
@@ -82,10 +82,13 @@ def get_age_group(div_str):
     if any(x in d for x in ["일반", "대학", "엘리트", "성인", "마스터즈"]): return "일반부"
     return "통합부"
 
+# 💡 [버그 픽스] 연도 2026 고정 버그 해결 (현재 연도로 자동 매핑)
+current_yr = datetime.date.today().year
+
 if not global_db.empty:
     global_db['소속팀'] = global_db['소속팀'].replace({'(사)부산펜싱클럽': '윈펜싱클럽', '부산펜싱클럽': '윈펜싱클럽', '(사)부산펜싱': '윈펜싱클럽'})
     global_db['대회일자'] = pd.to_datetime(global_db['대회일자'], errors='coerce')
-    global_db['연도'] = global_db['대회일자'].dt.year.fillna(2026).astype(int).astype(str)
+    global_db['연도'] = global_db['대회일자'].dt.year.fillna(current_yr).astype(int).astype(str)
     global_db['나이대'] = global_db['부수'].apply(get_age_group)
     for col in ['본선_순위(숫자)', '예선_순위(숫자)', '레이팅(PT)', '예선_승률(%)', '예선_승', '예선_패', '예선_득점', '예선_실점']:
         if col not in global_db.columns: global_db[col] = 0
@@ -96,7 +99,7 @@ if not global_match.empty:
     global_match['기준팀'] = global_match['기준팀'].replace({'(사)부산펜싱클럽': '윈펜싱클럽', '부산펜싱클럽': '윈펜싱클럽', '(사)부산펜싱': '윈펜싱클럽'})
     global_match['상대팀'] = global_match['상대팀'].replace({'(사)부산펜싱클럽': '윈펜싱클럽', '부산펜싱클럽': '윈펜싱클럽', '(사)부산펜싱': '윈펜싱클럽'})
     global_match['대회일자'] = pd.to_datetime(global_match['대회일자'], errors='coerce')
-    global_match['연도'] = global_match['대회일자'].dt.year.fillna(2026).astype(int).astype(str)
+    global_match['연도'] = global_match['대회일자'].dt.year.fillna(current_yr).astype(int).astype(str)
     global_match['기준_고유'] = global_match['기준선수'] + " (" + global_match['기준팀'].fillna("소속불명") + ")"
     global_match['상대_고유'] = global_match['상대선수'] + " (" + global_match['상대팀'].fillna("소속불명") + ")"
 
@@ -105,7 +108,8 @@ sel_year = "전체 (통산 누적)"
 with st.sidebar:
     st.header("🔍 시즌제 통합 필터")
     if not global_db.empty:
-        sel_year = st.selectbox("📅 시즌 (연도) 선택", ["전체 (통산 누적)"] + sorted(list(global_db['연도'].unique()), reverse=True))
+        years_list = sorted(list(global_db['연도'].unique()), reverse=True)
+        sel_year = st.selectbox("📅 시즌 (연도) 선택", ["전체 (통산 누적)"] + years_list)
         if sel_year != "전체 (통산 누적)":
             global_db = global_db[global_db['연도'] == sel_year]
             global_match = global_match[global_match['연도'] == sel_year]
@@ -119,21 +123,31 @@ tabs = st.tabs([
     "🎮 1인 통합분석 (스탯/칭호/대회뿔)", "⚔️ 1:1 라이벌 매치", "🔮 명단 시뮬레이터", "⚙️ 데이터 관리(엑셀)"
 ])
 
-# ================= TAB 0: 가이드 =================
+# ================= TAB 0: 가이드 & 일정표 =================
 with tabs[0]:
-    st.subheader("📖 윈펜싱 데이터랩 V36.0 밸런스 패치 노트")
+    st.subheader("📖 윈펜싱 데이터랩 V38.0 직관성 완결판 패치 노트")
     st.markdown("""
-    *   **⚖️ 본선 15점 난이도 보정치 적용:** 예선(5점)보다 본선(15점)이 체력 및 수준 난이도가 급상승하는 펜싱의 룰을 반영했습니다. 이제 **본선 기대 승률을 예선의 85%**로 하향 보정하여 더욱 합리적인 새가슴 지수를 계산합니다.
-    *   **🎖️ 무한 칭호 도배(중첩) 시스템 허용:** 상위 칭호를 얻으면 하위 칭호가 사라지던 제한을 풀었습니다. 달성한 모든 업적(칭호)이 인벤토리에 무한정 주렁주렁 스태킹되어 RPG 게임의 맛을 살렸습니다.
-    *   **🔤 규정 경기 수 정정:** '규정 타석'을 종목에 맞게 '규정 경기 수'로 올바르게 수정했습니다.
-    *   **🛡️ 파서 로직 전면 수술 (기록 누락 방지):** 동순위자 발생 시 대진표 시뮬레이션에서 누락되던 엑셀 구조적 결함을 **'논리 시드 강제 배정'** 알고리즘으로 완벽히 해결했습니다!
+    *   **📈 세이버메트릭스 시각화 완전 개편:** 알기 어렵던 그래프를 지우고, 게임 스탯창처럼 **"상위 15% (S급)"** 등을 직관적으로 알려주는 해설형 UI(등급 카드)로 전면 교체했습니다!
+    *   **📅 일정표 에디터 탑재:** 관리자로 로그인 시, 이 화면에서 엑셀처럼 더블클릭하여 일정을 쉽게 추가, 수정, 삭제하고 바로 저장할 수 있습니다.
+    *   **🐛 표 에러(TypeError) 완벽 해결:** 뿔(Poule) 테이블을 불러올 때 가끔 숫자가 문자열에 막혀 뻗어버리던 서버 에러를 안전한 데이터 포맷팅으로 원천 차단했습니다.
     """)
     st.divider()
     st.subheader("📅 연간 대회 및 행사 일정표")
-    if not st.session_state.schedule_db.empty:
-        st.dataframe(st.session_state.schedule_db.sort_values(by="대회일자"), use_container_width=True, hide_index=True)
+    
+    # 💡 [핵심 패치 1] 관리자 엑셀형 일정 에디터 도입
+    if st.session_state.admin_auth:
+        st.info("✏️ **[관리자 전용 에디터]** 아래 표 안의 글자를 더블클릭하여 수정하거나, 맨 아래 빈 줄에 일정을 추가하세요. 왼쪽 체크박스를 누르고 'Delete' 키를 누르면 행이 지워집니다.")
+        edited_schedule = st.data_editor(st.session_state.schedule_db, num_rows="dynamic", use_container_width=True)
+        if st.button("💾 일정표 변경사항 영구 저장"):
+            st.session_state.schedule_db = edited_schedule
+            st.session_state.schedule_db.to_csv(SCHEDULE_DB_FILE, index=False, encoding='utf-8-sig')
+            st.success("✅ 일정이 성공적으로 저장되었습니다!")
+            st.rerun()
     else:
-        st.info("현재 등록된 일정이 없습니다.")
+        if not st.session_state.schedule_db.empty:
+            st.dataframe(st.session_state.schedule_db.sort_values(by="대회일자"), use_container_width=True, hide_index=True)
+        else:
+            st.info("현재 등록된 일정이 없습니다.")
 
 # ================= TAB 1: 종합 랭킹 =================
 with tabs[1]:
@@ -237,7 +251,6 @@ with tabs[3]:
             p_data = global_db[global_db['고유이름'] == sel_player].sort_values('대회일자')
             m_data = global_match[global_match['기준_고유'] == sel_player]
             
-            # --- 💡 [에러 픽스] 최고 순위(best_r) 변수 초기 선언으로 NameError 원천 차단 ---
             valid_ranks = p_data[p_data['본선_순위(숫자)'] > 0]['본선_순위(숫자)']
             best_r = valid_ranks.min() if not valid_ranks.empty else None
             
@@ -271,7 +284,6 @@ with tabs[3]:
                                 st.session_state.profile_db.to_csv(PROFILE_DB_FILE, index=False, encoding='utf-8-sig')
                                 st.rerun()
 
-            # --- 규정 경기 수 (용어 정정) ---
             QUAL_MATCHES = 10
             t_m_hex = p_data['예선_승'].sum() + p_data['예선_패'].sum()
             is_qual = t_m_hex >= QUAL_MATCHES
@@ -283,7 +295,6 @@ with tabs[3]:
                 st.markdown(f"**⚔️ 주특기:** {p_skill}")
                 st.info(f"💬 \"{p_motto}\"")
 
-            # --- 육각형 ---
             with col_hex:
                 avg_sc = p_data['예선_득점'].sum() / t_m_hex if t_m_hex > 0 else 0
                 avg_ls = p_data['예선_실점'].sum() / t_m_hex if t_m_hex > 0 else 5.0
@@ -314,7 +325,6 @@ with tabs[3]:
 
             st.markdown("---")
 
-            # --- 전체 생태계 초세분화 티어 ---
             all_pts = global_db.groupby('고유이름')['레이팅(PT)'].sum()
             my_pt = all_pts.get(sel_player, 0)
             pct = (all_pts > my_pt).mean() * 100 if len(all_pts) > 1 else 50.0
@@ -347,27 +357,23 @@ with tabs[3]:
             </div>
             """, unsafe_allow_html=True)
 
-            # --- 💡 [핵심 패치 2] 세이버메트릭스 (15점제 본선 난이도 보정) ---
-            age_group = p_data['나이대'].iloc[-1]
+            # --- 💡 [핵심 패치 2] 세이버메트릭스 직관성 대개편 (S/A/B/C 등급 카드) ---
+            st.markdown(f"#### 🔬 세이버메트릭스 심층 분석 리포트")
+            st.info("💡 **그래프 대신 직관적인 해설을 제공합니다!** 전체 펜서(최소 5경기 출전자)의 통계를 바탕으로 우리 선수의 폼이 전체 생태계 중 어디에 속하는지 직관적인 등급(S/A/B/C)으로 해석해 줍니다.")
+            
             tot_tournaments = len(p_data)
             tot_matches = p_data['예선_승'].sum() + p_data['예선_패'].sum()
             actual_wr = (p_data['예선_승'].sum() / tot_matches * 100) if tot_matches > 0 else 0
             
             tot_sc = p_data['예선_득점'].sum()
             tot_ls = p_data['예선_실점'].sum()
-            avg_margin = (tot_sc - tot_ls) / tot_matches if tot_matches > 0 else 0
             
             denom = (tot_sc**2) + (tot_ls**2)
             pythagorean = ((tot_sc**2) / denom * 100) if denom > 0 else 50.0
-            luck_index = actual_wr - pythagorean 
-            
-            main_advances = len(p_data[(p_data['본선_랭킹'].notna()) & (p_data['본선_랭킹'] != "예선탈락") & (p_data['본선_랭킹'] != "기록없음")])
-            pass_rate = (main_advances / tot_tournaments * 100) if tot_tournaments > 0 else 0.0
             
             main_m = m_data[m_data['단계'] == '본선']
             main_total = len(main_m)
             
-            # 본선 15점제 난이도 보정 (본선 기대 승률 = 예선 승률의 85%)
             if main_total > 0:
                 raw_main_wr = (len(main_m[main_m['승패'] == '승']) / main_total * 100)
                 expected_main_wr = actual_wr * 0.85 
@@ -381,58 +387,135 @@ with tabs[3]:
             sweats = len(m_data[(m_data['단계']=='예선') & (m_data['진땀승']=='Y')])
             dom_rate = ((tot_wins - sweats) / tot_wins * 100) if tot_wins > 0 else 0.0
 
-            st.markdown(f"#### 🔬 세이버메트릭스 심층 지표 분석")
-            with st.expander("💡 [세이버메트릭스 용어 설명 보기] - 15점 난이도 보정 패치 완료!"):
-                st.markdown("""
-                * **예선 통과율**: 조별 예선을 뚫고 엘리미나시옹(토너먼트)에 진출한 비율.
-                * **기대 승률 (피타고리안)**: 순수 득실점 비율로 계산한 '통계상 이상적인 승률'.
-                * **새가슴 지수 (15점 난이도 보정)**: 15점제인 본선이 훨씬 체력 소모가 크고 어렵기 때문에, **본선 기대 승률을 예선 승률의 85%로 낮추어(보정치 적용)** 실제 본선 승률과 비교합니다. 이 결과가 양수(+)면 난이도 페널티를 주어도 본선에서 무너지는 새가슴임을 의미합니다.
-                * **압도율**: 1점 차 '진땀승'을 제외하고 확실한 격차로 여유롭게 이긴 완승 비율입니다.
-                """)
-            
-            s1, s2, s3, s4 = st.columns(4)
-            s1.metric("예선 ➡ 본선 통과율", f"{pass_rate:.1f}%", f"{main_advances}회 본선 진출", delta_color="off")
-            s2.metric("기대 승률 (피타고리안)", f"{pythagorean:.1f}%", f"운/클러치 지수: {luck_index:+.1f}%p", delta_color="off")
-            
-            if main_advances > 0 and main_total == 0:
-                s3.metric("예선 ➡ 15점 본선 승률", f"{actual_wr:.0f}% ➡ N/A", f"본선 대진 기록 누락", delta_color="off", help="엑셀에 본선 스코어 기록이 없습니다. 데이터 완전 초기화 후 재업로드를 권장합니다.")
-            elif main_advances > 0 and main_total > 0:
-                s3.metric("예선 ➡ 15점 본선 승률", f"{actual_wr:.0f}% ➡ {raw_main_wr:.0f}%", f"새가슴 지수: {choke_index:+.1f}%p (난이도 보정)", delta_color="inverse", help="본선 기대 승률을 예선의 85%로 하향 보정한 후 비교합니다. 양수(+)면 단판승부에 약하고, 음수(-)면 15점제 본선에 더 강한 다크템플러입니다.")
-            else:
-                s3.metric("예선 ➡ 15점 본선 승률", f"{actual_wr:.0f}% ➡ N/A", f"본선(토너먼트) 진출 기록 없음", delta_color="off")
+            # 전역 지표 산출 (퍼센타일 랭킹용)
+            player_stats = []
+            for p in global_db['고유이름'].unique():
+                p_d = global_db[global_db['고유이름'] == p]
+                m_d = global_match[global_match['기준_고유'] == p]
                 
-            s4.metric("압도율 (완승 비율)", f"{dom_rate:.1f}%", f"평균 득실 마진: {avg_margin:+.1f}점", delta_color="off")
+                tw = p_d['예선_승'].sum()
+                tl = p_d['예선_패'].sum()
+                tm = tw + tl
+                if tm < 5: continue
+                    
+                tsc = p_d['예선_득점'].sum()
+                tls = p_d['예선_실점'].sum()
+                d_denom = (tsc**2) + (tls**2)
+                p_pyth = (tsc**2)/d_denom * 100 if d_denom > 0 else 50.0
+                
+                p_sweats = len(m_d[(m_d['단계']=='예선') & (m_d['진땀승']=='Y')])
+                p_dom = ((tw - p_sweats) / tw * 100) if tw > 0 else 0.0
+                
+                p_main_m = m_d[m_d['단계'] == '본선']
+                p_mtot = len(p_main_m)
+                p_wr = (tw/tm)*100 if tm > 0 else 0.0
+                if p_mtot > 0:
+                    p_raw_m_wr = (len(p_main_m[p_main_m['승패']=='승']) / p_mtot * 100)
+                    p_choke = (p_wr * 0.85) - p_raw_m_wr
+                else:
+                    p_choke = np.nan
+                    
+                p_advances = len(p_d[(p_d['본선_랭킹'].notna()) & (p_d['본선_랭킹'] != "예선탈락") & (p_d['본선_랭킹'] != "기록없음")])
+                p_pass_rate = (p_advances / len(p_d) * 100) if len(p_d) > 0 else 0.0
+                
+                player_stats.append({'uid': p, 'pyth': p_pyth, 'dom': p_dom, 'choke': p_choke, 'pass': p_pass_rate})
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("##### 📈 세이버메트릭스 시각화 트렌드 차트")
-            if tot_tournaments > 1:
-                chart_df = p_data.copy()
-                chart_df['대회명_축약'] = chart_df['대회일자'].dt.strftime('%m/%d') + " " + chart_df['대회명'].str[:5] + ".."
-                chart_df['예선_경기수'] = chart_df['예선_승'] + chart_df['예선_패']
-                chart_df['평균득점'] = chart_df.apply(lambda r: r['예선_득점']/r['예선_경기수'] if r['예선_경기수']>0 else 0, axis=1)
-                chart_df['평균실점'] = chart_df.apply(lambda r: r['예선_실점']/r['예선_경기수'] if r['예선_경기수']>0 else 0, axis=1)
+            ps_df = pd.DataFrame(player_stats)
+            
+            def get_top_percentile(val, series, higher_is_better=True):
+                if len(series) == 0: return 50.0
+                if higher_is_better: return (series > val).mean() * 100
+                else: return (series < val).mean() * 100
+
+            def render_metric_card(title, value_str, pct, desc, is_na=False):
+                if is_na:
+                    return f"""
+                    <div style="background-color:#1e1e1e; border-left: 5px solid #555; border-radius:8px; padding:15px; margin-bottom:15px;">
+                        <h4 style="margin:0; color:#aaa;">{title} : {value_str}</h4>
+                        <p style="color:#888; font-size:14px; margin-top:5px; margin-bottom:0;">{desc}<br>기록이 부족하여 전체 유저와 비교할 수 없습니다.</p>
+                    </div>
+                    """
+                    
+                pct = max(0.1, min(99.9, pct)) # 0이나 100 방지
+                if pct <= 15:
+                    level_text = f"상위 {pct:.1f}% (S급 - 최상위권)"
+                    color = "#54c3a6" # Green
+                    bar_w = 100 - pct
+                elif pct <= 40:
+                    level_text = f"상위 {pct:.1f}% (A급 - 우수)"
+                    color = "#54c3a6" # Green
+                    bar_w = 100 - pct
+                elif pct <= 70:
+                    level_text = f"하위 {100-pct:.1f}% (B급 - 평균)"
+                    color = "#f2a900" # Yellow
+                    bar_w = 100 - pct
+                else:
+                    level_text = f"하위 {100-pct:.1f}% (C급 - 보완필요)"
+                    color = "#ff6666" # Red
+                    bar_w = 100 - pct
+                    
+                return f"""
+                <div style="background-color:#1e1e1e; border-left: 5px solid {color}; border-radius:8px; padding:15px; margin-bottom:15px;">
+                    <h4 style="margin:0; color:{color};">{title} : {value_str}</h4>
+                    <p style="color:#ddd; font-size:14px; margin-top:5px; margin-bottom:10px;">{desc}<br><span style="color:{color}; font-weight:bold;">➔ 전체 펜서 중 {level_text} 수준입니다.</span></p>
+                    <div style="width:100%; background-color:#333; border-radius:5px; height:12px;">
+                        <div style="width:{bar_w}%; background-color:{color}; height:100%; border-radius:5px;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-top:5px;">
+                        <span>C급 (하위권)</span>
+                        <span>S급 (최상위권)</span>
+                    </div>
+                </div>
+                """
                 
-                c_c1, c_c2 = st.columns(2)
-                with c_c1:
-                    fig_bar = go.Figure()
-                    fig_bar.add_trace(go.Bar(x=chart_df['대회명_축약'], y=chart_df['평균득점'], name='평균 득점', marker_color='#54c3a6'))
-                    fig_bar.add_trace(go.Bar(x=chart_df['대회명_축약'], y=-chart_df['평균실점'], name='평균 실점', marker_color='#ff6666'))
-                    fig_bar.update_layout(title="대회별 평균 득/실점 마진 추이", barmode='relative', template='plotly_dark', margin=dict(t=40, b=20, l=20, r=20), height=250)
-                    st.plotly_chart(fig_bar, use_container_width=True)
-                with c_c2:
-                    fig_line = px.line(chart_df, x='대회명_축약', y='예선_승률(%)', markers=True, title="대회별 예선 승률 추이 곡선")
-                    fig_line.update_traces(line_color='#ffd700', marker=dict(size=8))
-                    fig_line.update_layout(template='plotly_dark', margin=dict(t=40, b=20, l=20, r=20), height=250, yaxis_range=[-5, 105])
-                    st.plotly_chart(fig_line, use_container_width=True)
-            else:
-                st.info("차트를 생성하기에는 출전 대회 수가 부족합니다. (최소 2회 이상 출전 필요)")
+            pct_pyth = get_top_percentile(pythagorean, ps_df['pyth'], True) if not ps_df.empty else 50.0
+            pct_dom = get_top_percentile(dom_rate, ps_df['dom'], True) if not ps_df.empty else 50.0
+            valid_choke = ps_df['choke'].dropna()
+            pct_choke = get_top_percentile(choke_index, valid_choke, False) if choke_index is not None and not valid_choke.empty else 50.0
+            
+            main_advances = len(p_data[(p_data['본선_랭킹'].notna()) & (p_data['본선_랭킹'] != "예선탈락") & (p_data['본선_랭킹'] != "기록없음")])
+            pass_rate = (main_advances / tot_tournaments * 100) if tot_tournaments > 0 else 0.0
+            pct_pass = get_top_percentile(pass_rate, ps_df['pass'], True) if not ps_df.empty else 50.0
+
+            st.markdown(render_metric_card(
+                "🏁 예선 ➡ 본선 통과율", 
+                f"{pass_rate:.1f}%", 
+                pct_pass, 
+                "출전한 대회 중 조별 예선을 통과하여 본선 토너먼트에 진출한 비율입니다.",
+                is_na=(tot_tournaments==0)
+            ), unsafe_allow_html=True)
+
+            st.markdown(render_metric_card(
+                "⚔️ 기대 승률 (순수 경기력)", 
+                f"{pythagorean:.1f}%", 
+                pct_pyth, 
+                "운이나 요행을 제외하고, 득점과 실점의 비율로만 계산한 '통계적인 진짜 기본기'입니다.",
+                is_na=(tot_matches==0)
+            ), unsafe_allow_html=True)
+            
+            st.markdown(render_metric_card(
+                "🥶 새가슴 지수 (15점 본선 멘탈)", 
+                f"{choke_index:+.1f}%p" if choke_index is not None else "N/A", 
+                pct_choke, 
+                "15점제 단판 승부에서 예선만큼 실력을 발휘하는지 나타냅니다. 양수(+)면 본선에서 얼어붙는 새가슴, 음수(-)면 본선 무대 체질(강심장)을 뜻합니다.",
+                is_na=(choke_index is None)
+            ), unsafe_allow_html=True)
+            
+            st.markdown(render_metric_card(
+                "🚀 경기 압도율 (완승 비율)", 
+                f"{dom_rate:.1f}%", 
+                pct_dom, 
+                "이긴 경기 중에서 1점 차의 피말리는 접전(진땀승)을 제외하고, 상대를 넉넉한 점수 차로 여유롭게 완파한 비율입니다.",
+                is_na=(tot_wins==0)
+            ), unsafe_allow_html=True)
 
             st.divider()
 
             # --- 🤖 AI 리포트 ---
-            st.markdown("#### 🤖 AI 스카우터 리포트 (규정 경기 수 기반)")
+            st.markdown("#### 🤖 AI 스카우터 리포트")
             avg_sc_ai = tot_sc / (tot_matches if tot_matches else 1)
             avg_ls_ai = tot_ls / (tot_matches if tot_matches else 1)
+            avg_margin = (tot_sc - tot_ls) / tot_matches if tot_matches > 0 else 0
             
             if is_qual:
                 if avg_margin >= 3.0: l1 = f"평균 득실 마진 +{avg_margin:.1f}점! 상대를 압도하는 파괴적인 공격력과 단단한 방어를 동시에 갖춘 폭군입니다."
@@ -442,15 +525,17 @@ with tabs[3]:
                 elif avg_margin < -1.5: l1 = f"아직 득실 마진에서는 고전하고 있으나, 특유의 변칙적인 템포는 상대를 당황시키기에 충분합니다."
                 else: l1 = "공격과 수비의 밸런스를 유지하며, 어떤 상황에서도 유연하게 대처하는 능력을 지녔습니다."
                 
+                luck_index = actual_wr - pythagorean 
                 if luck_index >= 10: l2 = f"기대 승률({pythagorean:.1f}%)보다 실제 승률({actual_wr:.1f}%)이 더 높습니다! 접전에서 승리를 훔쳐오는 엄청난 클러치의 소유자."
                 elif luck_index <= -15: l2 = "스탯 내용은 훌륭하나 지독하게 승운이 따르지 않는 비운의 에이스. 억까를 이겨내면 성적이 폭발할 것입니다."
-                elif choke_index is not None and main_advances >= 3 and choke_index <= -15: l2 = "예선에서는 힘을 빼고 있다가 토너먼트에 진입하면 오히려 폼이 올라가는 '본선 여포' 기질이 다분합니다."
-                elif choke_index is not None and main_advances >= 3 and choke_index >= 15: l2 = "압도적인 예선 폼에 비해 15점제 본선 성적이 아쉽습니다. 체력 안배와 집중력만 보완한다면 우승권 텐션입니다."
+                elif choke_index is not None and choke_index <= -15: l2 = "예선에서는 힘을 빼고 있다가 토너먼트에 진입하면 오히려 폼이 올라가는 '본선 여포' 기질이 다분합니다."
+                elif choke_index is not None and choke_index >= 15: l2 = "압도적인 예선 폼에 비해 15점제 본선 성적이 아쉽습니다. 체력 안배와 집중력만 보완한다면 우승권 텐션입니다."
                 else: l2 = "매 경기 기복 없이 자신만의 확고한 템포로 묵묵하게 검을 휘두르는 안정적인 멘탈의 소유자입니다."
             else:
                 l1 = f"공식 기록이 {tot_matches}전으로 아직 데이터가 부족하여 AI 전투력 평가가 보류되었습니다."
                 l2 = "앞으로 대회를 더 출전하여 자신만의 데이터를 쌓고, 숨겨진 칭호들을 해금해보세요!"
 
+            age_group = p_data['나이대'].iloc[-1]
             if tot_tournaments >= 15: l3 = "수많은 대회 출전으로 다져진 깊은 내공! 짬바에서 나오는 노련미가 타의 추종을 불허합니다."
             elif age_group == "초등부": l3 = "하루가 다르게 쑥쑥 크는 펜싱계의 미래를 밝힐 특급 유소년 유망주입니다!"
             elif age_group == "중고등부": l3 = "피지컬과 테크닉이 동시에 만개하는 시기! 청소년부 생태계를 지배할 차세대 에이스입니다."
@@ -460,8 +545,8 @@ with tabs[3]:
             st.success(f"1️⃣ {l1}\n\n2️⃣ {l2}\n\n3️⃣ {l3}")
             st.divider()
 
-            # --- 💡 [핵심 패치 3] 칭호 시스템 무한 스택 (도배) 허용 ---
-            st.markdown("#### 🏆 획득한 업적 및 칭호 보드 (RPG 인벤토리 무한 스택)")
+            # --- 💡 [핵심 패치 4] 칭호 텍스트 간소화 ---
+            st.markdown("#### 🏆 획득한 업적 및 칭호")
             titles = []
             
             golds = len(p_data[p_data['본선_순위(숫자)'] == 1])
@@ -470,13 +555,10 @@ with tabs[3]:
             medals = golds + silvers + bronzes
             up_cnt = len(m_data[(m_data['단계'] == '본선') & (m_data['승패'] == '승') & (m_data['업셋여부'] == 'Y')])
             tot_pt = p_data['레이팅(PT)'].sum()
-            avg_sc = tot_sc / tot_matches if tot_matches > 0 else 0
-            avg_ls = tot_ls / tot_matches if tot_matches > 0 else 0
             p_loss = p_data['예선_패'].sum()
             p_win = p_data['예선_승'].sum()
             diff_opps = m_data['상대_고유'].nunique()
 
-            # elif를 모두 if로 분리하여 조건만 맞으면 칭호를 싹 다 쓸어담습니다.
             if golds >= 10: titles.append(("👑 전설의 검귀 (GOAT)", "대회 우승 10회 고지를 밟은 절대자."))
             if golds >= 5: titles.append(("👑 인간계 멸망", f"우승 {golds}회! 이 바닥 생태계 파괴자."))
             if golds >= 3: titles.append(("🔥 황금의 지배자", "우승 3회 이상! 금메달로 밥을 비벼먹습니다."))
@@ -500,15 +582,15 @@ with tabs[3]:
                 if actual_wr >= 70: titles.append(("🔥 돌격대장", "막강한 돌파력으로 예선을 가볍게 뚫어버립니다."))
                 if 45 <= actual_wr <= 55: titles.append(("⚖️ 인간 저울 (황금밸런스)", "강자든 약자든 무조건 반반 싸움으로 이끄는 기적의 밸런스."))
                 
-                if avg_sc >= 4.6: titles.append(("🚀 핵불닭 볶음검", f"평균 {avg_sc:.1f}득점! 방패는 갖다버린 극한의 공격수."))
-                if avg_sc >= 4.0: titles.append(("🗡️ 죽창맨", "매 경기 안정적으로 찌르고 베는 화끈한 닥공러."))
-                if 0 < avg_sc <= 2.5: titles.append(("🔫 스톰트루퍼", "공격이 더럽게 안 맞습니다. 영점 조절이 시급합니다!"))
+                if avg_sc_ai >= 4.6: titles.append(("🚀 핵불닭 볶음검", f"평균 {avg_sc_ai:.1f}득점! 방패는 갖다버린 극한의 공격수."))
+                if avg_sc_ai >= 4.0: titles.append(("🗡️ 죽창맨", "매 경기 안정적으로 찌르고 베는 화끈한 닥공러."))
+                if 0 < avg_sc_ai <= 2.5: titles.append(("🔫 스톰트루퍼", "공격이 더럽게 안 맞습니다. 영점 조절이 시급합니다!"))
                 
-                if 0 < avg_ls <= 1.5: titles.append(("❄️ 람머스 (절대방벽)", f"평균 {avg_ls:.1f}실점. 뚫는 것이 물리적으로 불가능합니다."))
-                if 0 < avg_ls <= 2.5: titles.append(("🐢 수면제 펜싱", "늪처럼 끈적한 수비로 상대를 질려버리게 만듭니다."))
-                if avg_ls >= 4.0: titles.append(("💸 자선사업가", "수비가 너무 관대하여 상대에게 점수를 마구 베풉니다."))
+                if 0 < avg_ls_ai <= 1.5: titles.append(("❄️ 람머스 (절대방벽)", f"평균 {avg_ls_ai:.1f}실점. 뚫는 것이 물리적으로 불가능합니다."))
+                if 0 < avg_ls_ai <= 2.5: titles.append(("🐢 수면제 펜싱", "늪처럼 끈적한 수비로 상대를 질려버리게 만듭니다."))
+                if avg_ls_ai >= 4.0: titles.append(("💸 자선사업가", "수비가 너무 관대하여 상대에게 점수를 마구 베풉니다."))
 
-                if avg_sc >= 4.2 and avg_ls >= 4.0: titles.append(("💣 유리대포 (낭만합격)", "맞기 전에 찌른다! 서로 피터지게 싸우는 낭만파 검객."))
+                if avg_sc_ai >= 4.2 and avg_ls_ai >= 4.0: titles.append(("💣 유리대포 (낭만합격)", "맞기 전에 찌른다! 서로 피터지게 싸우는 낭만파 검객."))
 
                 if pythagorean >= 75: titles.append(("📐 피타고라스의 악마", "운빨 제로! 완벽한 순수 스탯의 정석."))
                 if luck_index >= 12: titles.append(("🍀 주사위 신의 가호", "스탯은 평범한데 승리만 쏙쏙 빼먹는 기적의 럭키가이."))
@@ -517,9 +599,8 @@ with tabs[3]:
                 if dom_rate >= 80 and p_win >= 5: titles.append(("🔪 살인전차", "1점 차 진땀승 따윈 취급 안 함. 무자비한 도미네이팅."))
                 if dom_rate <= 30 and p_win >= 5: titles.append(("🩸 블라디미르 (꾸역승 마스터)", "보는 사람 피말리게 1점 차 접전으로 꾸역꾸역 이깁니다."))
                 
-                if choke_index is not None and main_advances >= 2:
-                    if choke_index >= 15: titles.append(("🥶 본선 자동문", "예선에서는 여포인데 15점제만 가면 심박수 200 찍는 새가슴."))
-                    if choke_index <= -15: titles.append(("🥷 다크템플러", "15점 단판승부만 가면 눈빛이 바뀌고 폼이 미쳐날뜁니다."))
+                if choke_index is not None and choke_index >= 15: titles.append(("🥶 본선 자동문", "예선에서는 여포인데 15점제만 가면 심박수 200 찍는 새가슴."))
+                if choke_index is not None and choke_index <= -15: titles.append(("🥷 다크템플러", "15점 단판승부만 가면 눈빛이 바뀌고 폼이 미쳐날뜁니다."))
 
             if p_win >= 100: titles.append(("⚔️ 무신 (武神)", "통산 100승 달성! 살아있는 전설."))
             if p_win >= 50: titles.append(("⚔️ 백전노장", "통산 50승. 수많은 검객을 베어 넘겼습니다."))
@@ -538,11 +619,10 @@ with tabs[3]:
             if diff_opps >= 10: titles.append(("👀 넓은 시야", f"다양한 유형의 상대 {diff_opps}명과 겨뤄봤습니다."))
 
             if p_win == 0 and tot_tournaments >= 2: titles.append(("🌱 떡잎마을 방범대", "조만간 터질 첫 승을 위해 칼을 갈고 있습니다!"))
-            if pass_rate == 0 and tot_tournaments >= 3: titles.append(("🚧 통곡의 벽", "번번이 예선의 벽을 넘지 못하고 있습니다."))
             
             if len(titles) == 0: titles.append(("👤 은둔 고수", "조용히 자신만의 펜싱을 수련하는 검사."))
 
-            st.write(f"**총 {len(titles)}개의 칭호(업적)를 무한 장착 중입니다!**")
+            st.write(f"**총 {len(titles)}개의 칭호를 장착 중입니다!**")
             t_col1, t_col2, t_col3 = st.columns(3)
             for i, (t, desc) in enumerate(titles):
                 col = [t_col1, t_col2, t_col3][i % 3]
@@ -554,7 +634,7 @@ with tabs[3]:
             st.markdown("#### 📜 대회별 매치 상세 (Poule & Elimination)")
             b1, b2, b3, b4 = st.columns(4)
             b1.metric("총 출전 대회", f"{tot_tournaments}회")
-            b2.metric("누적 레이팅", f"{tot_pt:.0f} PT")
+            b2.metric("누적 레이팅", f"{p_data['레이팅(PT)'].sum():.0f} PT")
             b3.metric("예선 누적 전적", f"{int(p_win)}승 {int(p_loss)}패")
             b4.metric("커리어 하이 (최고 순위)", f"{best_r:.0f}위" if pd.notna(best_r) and best_r > 0 else "-")
 
@@ -592,7 +672,14 @@ with tabs[3]:
                                 if short_names_only.count(sn) > 1: uid_to_name[p] = p 
                                 else: uid_to_name[p] = sn
                                 
-                            poule_df = pd.DataFrame(index=pool_players_uids, columns=pool_players_uids)
+                            # 💡 [핵심 패치 5] TypeError 원천 차단: Dataframe 생성 시 아예 object(문자열 호환) 타입으로 강제 초기화합니다.
+                            new_cols = ['승(V)', '득(TD)', '실(TR)', '지수(Ind)', '순위(R)']
+                            all_cols = pool_players_uids + new_cols
+                            poule_df = pd.DataFrame(index=pool_players_uids, columns=all_cols, dtype=object)
+                            
+                            # 비어있는 칸을 NaN이 아닌 빈 문자열("")로 채워 PyArrow 충돌을 방지합니다.
+                            poule_df = poule_df.fillna("")
+                            
                             for p in pool_players_uids: poule_df.loc[p, p] = "⬛"
                             
                             full_pool = global_match[(global_match['대회명'] == tn) & (global_match['단계'] == '예선')]
@@ -613,25 +700,25 @@ with tabs[3]:
                                                 else:
                                                     val = f"D{score}" if score.isdigit() else "D"
                                                     if score.upper().startswith("D"): val = score.upper()
-                                                poule_df.loc[p1, p2] = val
-                                        else:
-                                            poule_df.loc[p1, p2] = ""
+                                                # 값을 삽입할 때 반드시 str()로 캐스팅
+                                                poule_df.loc[p1, p2] = str(val)
                                             
-                            poule_df['승(V)'] = ""
-                            poule_df['득(TD)'] = ""
-                            poule_df['실(TR)'] = ""
-                            poule_df['지수(Ind)'] = ""
-                            poule_df['순위(R)'] = ""
-                            
                             for p1 in pool_players_uids:
                                 p_info = global_db[(global_db['고유이름'] == p1) & (global_db['대회명'] == tn)]
                                 if not p_info.empty:
                                     r_info = p_info.iloc[-1]
-                                    poule_df.loc[p1, '승(V)'] = r_info['예선_승']
-                                    poule_df.loc[p1, '득(TD)'] = r_info['예선_득점']
-                                    poule_df.loc[p1, '실(TR)'] = r_info['예선_실점']
-                                    poule_df.loc[p1, '지수(Ind)'] = int(r_info['예선_득점']) - int(r_info['예선_실점'])
-                                    poule_df.loc[p1, '순위(R)'] = r_info['예선_랭킹']
+                                    # 숫자를 넣을 때 발생하던 에러 방지를 위해 명시적으로 int 계산 후 str 변환
+                                    p_wins = int(r_info['예선_승']) if pd.notna(r_info['예선_승']) else 0
+                                    p_td = int(r_info['예선_득점']) if pd.notna(r_info['예선_득점']) else 0
+                                    p_tr = int(r_info['예선_실점']) if pd.notna(r_info['예선_실점']) else 0
+                                    p_ind = p_td - p_tr
+                                    p_rank = str(r_info['예선_랭킹'])
+                                    
+                                    poule_df.loc[p1, '승(V)'] = str(p_wins)
+                                    poule_df.loc[p1, '득(TD)'] = str(p_td)
+                                    poule_df.loc[p1, '실(TR)'] = str(p_tr)
+                                    poule_df.loc[p1, '지수(Ind)'] = str(p_ind)
+                                    poule_df.loc[p1, '순위(R)'] = p_rank
 
                             poule_df.rename(index=uid_to_name, columns=uid_to_name, inplace=True)
                             
@@ -667,7 +754,7 @@ with tabs[3]:
                                     m_rows.append({"라운드": rnd_tag, "상대 선수": f"{opp_name} ({m['상대팀']})", "결과": res, "스코어 (나 : 상대)": score_str, "비고": note})
                                 st.dataframe(pd.DataFrame(m_rows), use_container_width=True, hide_index=True)
                             else:
-                                st.warning("⚠️ **본선 상세 기록 스캔 불가**\n\n대진표(트리) 양식이 복잡하여 AI가 매치업을 스캔하지 못했습니다.\n(※ 구버전 데이터일 수 있으므로 **'데이터 완전 초기화' 후 엑셀 재업로드**를 권장합니다!)")
+                                st.warning("⚠️ **본선 상세 기록 스캔 불가**\n\n대진표(트리) 양식이 복잡하여 매치업 스캔에 실패했습니다.\n(※ '데이터 완전 초기화' 후 엑셀 재업로드 권장!)")
 
             st.divider()
             st.markdown(f"### 💬 {sel_player.split(' (')[0]} 선수 방명록")
@@ -954,10 +1041,8 @@ with tabs[6]:
                             new_players.append(p_info)
                             sheet_players.append(p_info)
 
-                        # 💡 [핵심 패치 4] 본선 기록 누락 원천 차단 (논리 시드 강제 배정)
                         advanced = [p for p in sheet_players if p['본선_순위(숫자)'] is not None and p['본선_순위(숫자)'] > 0]
                         if advanced:
-                            # 1. 누락 방지를 위해 예선 순위(숫자)가 없거나 중복되어도 안전하게 고유의 '논리 시드'를 생성
                             advanced.sort(key=lambda x: (x['예선_순위(숫자)'] if x['예선_순위(숫자)'] and x['예선_순위(숫자)'] > 0 else 9999))
                             for i, p in enumerate(advanced):
                                 p['논리_시드'] = i + 1
@@ -983,7 +1068,6 @@ with tabs[6]:
                             while bs < ms: bs *= 2
                             b_seeds = get_bracket(bs)
                             
-                            # 2. 논리 시드를 기반으로 100% 매칭
                             s2p = {p['논리_시드']: p for p in advanced}
                             cr = [s2p.get(s, None) for s in b_seeds]
                                     
@@ -1023,7 +1107,6 @@ with tabs[6]:
                                                 if found: break
                                             if found: break
                                         
-                                        # 3. 엑셀에서 점수를 못 찾더라도 V:D 기록이라도 강제 생성하여 증발 방어
                                         if w_score == "-" and l_score == "-": w_score, l_score = "V", "D"
                                         
                                         new_matches.append({'대회일자': str(t_date_str), '대회명': t_name, '부수': sheet_name, '기준선수': w['이름'], '기준팀': w['소속팀'], '상대선수': l['이름'], '상대팀': l['소속팀'], '승패': '승', '단계': '본선', '업셋여부': is_up, '진땀승':'N', '라운드': round_name, '기준득점': w_score, '상대득점': l_score})
@@ -1037,5 +1120,5 @@ with tabs[6]:
                     st.session_state.match_db = pd.concat([st.session_state.match_db, pd.DataFrame(new_matches)], ignore_index=True)
                     st.session_state.player_db.to_csv(PLAYER_DB_FILE, index=False, encoding='utf-8-sig')
                     st.session_state.match_db.to_csv(MATCH_DB_FILE, index=False, encoding='utf-8-sig')
-                    st.success(f"✅ 총 {success_count}개 대회 파싱 완료! (기록 누락 100% 원천 차단 알고리즘 적용)")
+                    st.success(f"✅ 총 {success_count}개 대회 파싱 완료! 엑셀 업로드 성공!")
                     st.rerun()

@@ -930,31 +930,47 @@ with tabs[2]:
                                         w_name, l_name = w['이름'], l['이름']
                                         w_score, l_score = "-", "-"
                                         
+                                        # 💡 [핵심 패치] Engarde 대진표 포맷 완벽 해독 로직
                                         found = False
                                         score_str = None
                                         
-                                        for c in range(df.shape[1]):
+                                        # A열(0) -> F열(5) -> J열(9) -> M열(12) -> O열(14) -> Q열(16) -> R열(17)
+                                        bracket_cols = [0, 1, 5, 9, 12, 14, 16, 17, 18]
+                                        
+                                        for i_col in range(len(bracket_cols)):
+                                            c = bracket_cols[i_col]
+                                            if c >= df.shape[1]: continue
+                                            
                                             w_rows = [r for r in range(df.shape[0]) if str(df.iloc[r, c]).replace(" ", "").replace(".0", "") == valid_names.get(w_name.replace(" ", ""), "")]
                                             l_rows = [r for r in range(df.shape[0]) if str(df.iloc[r, c]).replace(" ", "").replace(".0", "") == valid_names.get(l_name.replace(" ", ""), "")]
                                             
                                             for wr in w_rows:
                                                 for lr in l_rows:
-                                                    if abs(wr - lr) <= 16:
-                                                        for r_scan in range(max(0, wr-2), min(df.shape[0], wr+3)):
-                                                            for c_scan in range(max(0, c-1), min(df.shape[1], c+2)):
-                                                                cell_val = format_val(df.iloc[r_scan, c_scan])
-                                                                if ":" in cell_val:
-                                                                    pts = cell_val.split(":")
-                                                                    if len(pts) >= 2 and pts[0].isdigit() and pts[1].isdigit():
-                                                                        score_str = cell_val
-                                                                        break
-                                                            if score_str: break
+                                                    if abs(wr - lr) <= 32: # 서로 매칭 가능한 거리 (64강 기준 최대 32칸 차이)
+                                                        if i_col + 1 < len(bracket_cols):
+                                                            next_c = bracket_cols[i_col+1]
+                                                            if next_c < df.shape[1]:
+                                                                r_start = max(0, min(wr, lr) - 2)
+                                                                r_end = min(df.shape[0], max(wr, lr) + 3)
+                                                                for r_scan in range(r_start, r_end):
+                                                                    # 승자가 다음 열로 진출한 이름을 찾음
+                                                                    if str(df.iloc[r_scan, next_c]).replace(" ", "").replace(".0", "") == valid_names.get(w_name.replace(" ", ""), ""):
+                                                                        # 그 이름 바로 아래 칸들에서 점수를 찾음
+                                                                        for score_row in range(r_scan, r_scan + 3):
+                                                                            if score_row >= df.shape[0]: continue
+                                                                            cell_val = format_val(df.iloc[score_row, next_c])
+                                                                            if ":" in cell_val:
+                                                                                pts = cell_val.split(":")
+                                                                                if len(pts) >= 2 and pts[0].isdigit() and pts[1].isdigit():
+                                                                                    score_str = cell_val
+                                                                                    break
+                                                                        if score_str: break
                                                         
                                                         if score_str:
                                                             pts = score_str.split(":")
                                                             w_score = str(max(int(pts[0]), int(pts[1])))
                                                             l_score = str(min(int(pts[0]), int(pts[1])))
-                                                        elif c + 1 < df.shape[1]:
+                                                        elif c + 1 < df.shape[1]: # 기존 로직 백업
                                                             s_w = format_val(df.iloc[wr, c+1]).replace(" ", "")
                                                             s_l = format_val(df.iloc[lr, c+1]).replace(" ", "")
                                                             if re.match(r'^[VDvd]?\d*$', s_w) or s_w in ['V', 'D', '기권', '포기']: w_score = s_w

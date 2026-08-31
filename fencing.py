@@ -940,26 +940,42 @@ with tabs[2]:
                                             for wr in w_rows:
                                                 for lr in l_rows:
                                                     if abs(wr - lr) <= 16:
-                                                        # 💡 본선 점수 정밀 스캔 로직
-                                                        for r_scan in range(max(0, wr-2), min(df.shape[0], wr+3)):
-                                                            for c_scan in range(max(0, c-1), min(df.shape[1], c+2)):
-                                                                cell_val = str(df.iloc[r_scan, c_scan]).strip()
-                                                                if ":" in cell_val:
-                                                                    pts = cell_val.split(":")
-                                                                    if len(pts) == 2 and pts[0].isdigit() and pts[1].isdigit():
-                                                                        score_str = cell_val
-                                                                        break
-                                                            if score_str: break
-                                                        
-                                                        if score_str:
-                                                            pts = score_str.split(":")
-                                                            w_score = str(max(int(pts[0]), int(pts[1])))
-                                                            l_score = str(min(int(pts[0]), int(pts[1])))
-                                                        elif c + 1 < df.shape[1]:
-                                                            s_w = str(df.iloc[wr, c+1]).replace(" ", "").replace(".0", "")
-                                                            s_l = str(df.iloc[lr, c+1]).replace(" ", "").replace(".0", "")
-                                                            if re.match(r'^[VDvd]?\d*$', s_w) or s_w in ['V', 'D', '기권', '포기']: w_score = s_w
-                                                            if re.match(r'^[VDvd]?\d*$', s_l) or s_l in ['V', 'D', '기권', '포기']: l_score = s_l
+                                                    # 💡 본선 점수 정밀 스캔 로직 (수정본)
+                                                # 1. 승자와 패자의 행(row)을 모두 덮을 수 있도록 세로 스캔 범위 대폭 확장
+                                                r_start = max(0, min(wr, lr) - 2)
+                                                r_end = min(df.shape[0], max(wr, lr) + 3)
+                                                # 2. 우측으로 멀리 떨어진 열(column)도 읽을 수 있도록 가로 스캔 범위 확장 (최대 6칸)
+                                                c_end = min(df.shape[1], c + 6)
+                                                
+                                                for r_scan in range(r_start, r_end):
+                                                    for c_scan in range(max(0, c-1), c_end):
+                                                        # 3. 단순 str() 대신 위에서 정의한 format_val()을 적용해 엑셀 시간 변환 버그 방어
+                                                        cell_val = format_val(df.iloc[r_scan, c_scan]) 
+                                                        if ":" in cell_val:
+                                                            pts = cell_val.split(":")
+                                                            if len(pts) == 2 and pts[0].isdigit() and pts[1].isdigit():
+                                                                score_str = cell_val
+                                                                break
+                                                    if score_str: break
+                                                
+                                                if score_str:
+                                                    pts = score_str.split(":")
+                                                    w_score = str(max(int(pts[0]), int(pts[1])))
+                                                    l_score = str(min(int(pts[0]), int(pts[1])))
+                                                else:
+                                                    # 콜론(:) 형태의 점수를 못 찾았을 경우 V나 D를 찾는 백업 로직 범위도 확장
+                                                    for c_offset in range(1, 5):
+                                                        if c + c_offset < df.shape[1]:
+                                                            s_w = str(df.iloc[wr, c + c_offset]).replace(" ", "").replace(".0", "")
+                                                            s_l = str(df.iloc[lr, c + c_offset]).replace(" ", "").replace(".0", "")
+                                                            
+                                                            valid_w = re.match(r'^[VDvd]?\d*$', s_w) or s_w in ['V', 'D', '기권', '포기']
+                                                            valid_l = re.match(r'^[VDvd]?\d*$', s_l) or s_l in ['V', 'D', '기권', '포기']
+                                                            
+                                                            if (s_w and valid_w) or (s_l and valid_l):
+                                                                if valid_w: w_score = s_w
+                                                                if valid_l: l_score = s_l
+                                                                break
                                                         found = True
                                                         break
                                                 if found: break

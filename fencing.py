@@ -8,10 +8,11 @@ import random
 import plotly.graph_objects as go
 import plotly.express as px
 
-st.set_page_config(page_title="윈펜싱클럽 전력 분석 V38.0", page_icon="🤺", layout="wide")
+st.set_page_config(page_title="WIN.GG - 전국 펜싱 전력 분석", page_icon="🤺", layout="wide")
 
-st.title("🤺 윈펜싱클럽 통합 데이터랩 (V38.0 직관성 패치)")
-st.markdown("세이버메트릭스 해설/등급제 + 일정표 에디터 탑재 + 에러 완벽 픽스!")
+st.title("🤺 WIN.GG (윈닷지지) - 전국 펜싱 통합 데이터랩")
+st.markdown("전국 펜싱인들의 전적 검색 및 커뮤니티 플랫폼)
+
 
 # ================= 🗄️ 데이터베이스 및 기본 설정 =================
 PLAYER_DB_FILE = "fencing_player_db.csv"

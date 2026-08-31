@@ -83,7 +83,7 @@ if any(x in d for x in ["중", "고", "청소년", "U-14", "U-15", "U-17", "U14"
 if any(x in d for x in ["일반", "대학", "엘리트", "성인", "마스터즈"]): return "일반부"
 return "통합부"
 
-💡 [버그 픽스] 연도 2026 고정 버그 해결 (현재 연도로 자동 매핑)
+# 💡 [버그 픽스] 연도 2026 고정 버그 해결 (현재 연도로 자동 매핑)
 current_yr = datetime.date.today().year
 
 if not global_db.empty:

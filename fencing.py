@@ -11,7 +11,7 @@ import plotly.express as px
 st.set_page_config(page_title="WIN.GG - 전국 펜싱 전력 분석", page_icon="🤺", layout="wide")
 
 st.title("🤺 WIN.GG (윈닷지지) - 전국 펜싱 통합 데이터랩")
-st.markdown("전국 펜싱인들의 전적 검색 및 커뮤니티 플랫폼)
+st.markdown("전국 펜싱인들의 전적 검색 및 커뮤니티 플랫폼")
 
 
 # ================= 🗄️ 데이터베이스 및 기본 설정 =================

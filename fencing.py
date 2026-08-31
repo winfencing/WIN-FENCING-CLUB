@@ -17,8 +17,6 @@ st.markdown("전국 펜싱인들의 전적 검색 및 커뮤니티 플랫폼")
 PLAYER_DB_FILE = "fencing_player_db.csv"
 MATCH_DB_FILE = "fencing_match_db.csv"
 COMMENT_DB_FILE = "fencing_comment_db.csv"
-CLUB_COMMENT_DB_FILE = "fencing_club_comment_db.csv"
-SCHEDULE_DB_FILE = "fencing_schedule_db.csv"
 PROFILE_DB_FILE = "fencing_profile_db.csv"
 
 # 🌟 관리자 인증 및 사이드바
@@ -29,7 +27,7 @@ with st.sidebar:
     st.header("🔒 관리자 모드")
     if not st.session_state.admin_auth:
         with st.form("admin_login"):
-            admin_pw = st.text_input("비밀번호 (업로드/일정/프로필 관리)", type="password")
+            admin_pw = st.text_input("비밀번호 (업로드/프로필 관리)", type="password")
             if st.form_submit_button("로그인 (Enter)"):
                 if admin_pw == "win1205!":
                     st.session_state.admin_auth = True
@@ -45,13 +43,13 @@ with st.sidebar:
             
     st.divider()
     if st.session_state.admin_auth:
-        st.warning("⚠️ 랭킹 꼬임 / 연도(2026) 버그 리셋 시")
+        st.warning("⚠️ 랭킹 꼬임 / 연도 버그 리셋 시")
         if st.button("🗑️ 성적 데이터 완전 초기화"):
             if os.path.exists(PLAYER_DB_FILE): os.remove(PLAYER_DB_FILE)
             if os.path.exists(MATCH_DB_FILE): os.remove(MATCH_DB_FILE)
             for key in ['player_db', 'match_db']:
                 if key in st.session_state: del st.session_state[key]
-            st.success("성적 리셋 완료! (프로필 및 일정표 유지) 엑셀을 다시 올리시면 정상 적용됩니다.")
+            st.success("성적 리셋 완료! 엑셀을 다시 올리시면 정상 적용됩니다.")
             st.rerun()
 
 # DB 로딩 함수
@@ -62,8 +60,6 @@ def load_db(file_name, default_cols=None):
 if 'player_db' not in st.session_state: st.session_state.player_db = load_db(PLAYER_DB_FILE)
 if 'match_db' not in st.session_state: st.session_state.match_db = load_db(MATCH_DB_FILE)
 if 'comment_db' not in st.session_state: st.session_state.comment_db = load_db(COMMENT_DB_FILE, ["대상선수", "작성자", "내용", "작성일시"])
-if 'club_comment_db' not in st.session_state: st.session_state.club_comment_db = load_db(CLUB_COMMENT_DB_FILE, ["대상클럽", "작성자", "내용", "작성일시"])
-if 'schedule_db' not in st.session_state: st.session_state.schedule_db = load_db(SCHEDULE_DB_FILE, ["대회일자", "대회명", "장소", "비고"])
 if 'profile_db' not in st.session_state: st.session_state.profile_db = load_db(PROFILE_DB_FILE, ["고유이름", "사진URL", "신장", "주사용손", "주특기", "한줄소개"])
 
 global_db = st.session_state.player_db.copy()
@@ -82,7 +78,6 @@ def get_age_group(div_str):
     if any(x in d for x in ["일반", "대학", "엘리트", "성인", "마스터즈"]): return "일반부"
     return "통합부"
 
-# 💡 [버그 픽스] 연도 고정 버그 해결 (현재 연도로 자동 매핑)
 current_yr = datetime.date.today().year
 
 if not global_db.empty:
@@ -103,42 +98,17 @@ if not global_match.empty:
     global_match['기준_고유'] = global_match['기준선수'] + " (" + global_match['기준팀'].fillna("소속불명") + ")"
     global_match['상대_고유'] = global_match['상대선수'] + " (" + global_match['상대팀'].fillna("소속불명") + ")"
 
-sel_year = "전체 (통산 누적)"
-
 # ================= 🎯 UI 탭 구성 =================
+# 불필요한 탭 삭제 후 3개 핵심 탭으로 집중
 tabs = st.tabs([
-    "📖 가이드/일정표", "🏆 종합 랭킹 보드", "🏢 클럽 명전/방명록", 
-    "🎮 1인 통합분석 (스탯/칭호/대회뿔)", "⚔️ 1:1 라이벌 매치", "🔮 명단 시뮬레이터", "⚙️ 데이터 관리(엑셀)"
+    "🏆 종합 랭킹 보드", 
+    "🎮 1인 통합분석 (스탯/칭호)", 
+    "⚙️ 데이터 관리(엑셀)"
 ])
 
-# ================= TAB 0: 가이드 & 일정표 =================
+# ================= TAB 0: 종합 랭킹 =================
 with tabs[0]:
-    st.subheader("📖 WIN.GG 데이터랩 V38.0 직관성 완결판 패치 노트")
-    st.markdown("""
-    *   **📈 세이버메트릭스 시각화 완전 개편:** 알기 어렵던 그래프를 지우고, 게임 스탯창처럼 **"상위 15% (S급)"** 등을 직관적으로 알려주는 해설형 UI(등급 카드)로 전면 교체했습니다!
-    *   **📅 일정표 에디터 탑재:** 관리자로 로그인 시, 이 화면에서 엑셀처럼 더블클릭하여 일정을 쉽게 추가, 수정, 삭제하고 바로 저장할 수 있습니다.
-    *   **🐛 본선 스코어 버그 수술:** 엑셀이 마음대로 점수(15:11)를 시간으로 바꿔치기해서 누락되던 버그를 강제 복원 로직으로 완벽 차단했습니다.
-    """)
-    st.divider()
-    st.subheader("📅 연간 대회 및 행사 일정표")
-    
-    if st.session_state.admin_auth:
-        st.info("✏️ **[관리자 전용 에디터]** 아래 표 안의 글자를 더블클릭하여 수정하거나, 맨 아래 빈 줄에 일정을 추가하세요. 왼쪽 체크박스를 누르고 'Delete' 키를 누르면 행이 지워집니다.")
-        edited_schedule = st.data_editor(st.session_state.schedule_db, num_rows="dynamic", use_container_width=True)
-        if st.button("💾 일정표 변경사항 영구 저장"):
-            st.session_state.schedule_db = edited_schedule
-            st.session_state.schedule_db.to_csv(SCHEDULE_DB_FILE, index=False, encoding='utf-8-sig')
-            st.success("✅ 일정이 성공적으로 저장되었습니다!")
-            st.rerun()
-    else:
-        if not st.session_state.schedule_db.empty:
-            st.dataframe(st.session_state.schedule_db.sort_values(by="대회일자"), use_container_width=True, hide_index=True)
-        else:
-            st.info("현재 등록된 일정이 없습니다.")
-
-# ================= TAB 1: 종합 랭킹 =================
-with tabs[1]:
-    st.subheader("🏆 종합 랭킹 보드")
+    st.subheader("🏆 전국 종합 랭킹 보드")
     if not global_db.empty:
         f_col1, f_col2 = st.columns(2)
         with f_col1:
@@ -182,67 +152,11 @@ with tabs[1]:
             else:
                 st.info("조건에 맞는 선수 데이터가 없습니다.")
     else:
-        st.warning("등록된 데이터가 없습니다. 관리자 탭에서 엑셀을 업로드 해주세요.")
+        st.warning("등록된 데이터가 없습니다. 좌측 관리자 탭에서 데이터를 업로드 해주세요.")
 
-# ================= TAB 2: 클럽 분석 =================
-with tabs[2]:
-    st.subheader(f"🏢 클럽 정밀 분석 & 명예의 전당")
-    if not global_db.empty:
-        my_team = st.selectbox("분석할 클럽(소속팀)을 선택하세요.", ["선택"] + sorted(list(global_db['소속팀'].dropna().unique())))
-        if my_team != "선택":
-            h_db = global_db[global_db['소속팀'] == my_team]
-            h_match = global_match[global_match['기준팀'] == my_team]
-            
-            st.markdown(f"### 🛡️ {my_team} 전력 분석실")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("총 등록 선수", f"{h_db['고유이름'].nunique()}명")
-            c2.metric("클럽 총 누적 레이팅", f"{h_db['레이팅(PT)'].sum():.0f} PT")
-            c3.metric("클럽 평균 승률", f"{h_db['예선_승률(%)'].mean():.1f}%")
-            c4.metric("본선 업셋 (자이언트 킬링)", f"{len(h_match[(h_match['단계'] == '본선') & (h_match['승패'] == '승') & (h_match['업셋여부'] == 'Y')])}회")
-            
-            st.markdown("---")
-            st.markdown(f"### 🏅 {my_team} 명예의 전당 (Top 10)")
-            s1, s2, s3, s4 = st.columns(4)
-            
-            golds = h_db[h_db['본선_순위(숫자)'] == 1].groupby('고유이름').size().reset_index(name='금메달').sort_values('금메달', ascending=False).head(10)
-            s1.success("👑 **[우승 제조기]**\n\n클럽 내 1위 입상 Top 10")
-            for i, row in golds.iterrows(): s1.write(f"- {row['고유이름'].split(' (')[0]} (금 {row['금메달']}개)")
-            
-            medals = h_db[(h_db['본선_순위(숫자)'] >= 1) & (h_db['본선_순위(숫자)'] <= 4)].groupby('고유이름').size().reset_index(name='메달').sort_values('메달', ascending=False).head(10)
-            s2.warning("🎖️ **[메달 콜렉터]**\n\n포디움(1~3위) 입상 Top 10")
-            for i, row in medals.iterrows(): s2.write(f"- {row['고유이름'].split(' (')[0]} (총 {row['메달']}회)")
-
-            wk = h_db.groupby('고유이름').agg(승률=('예선_승률(%)','mean'), 예선승=('예선_승','sum')).reset_index()
-            wk = wk[wk['예선승'] >= 5].sort_values('승률', ascending=False).head(10)
-            s3.info("🔥 **[최고 승률왕]**\n\n예선 승률 Top 10 (최소 5승)")
-            for i, row in wk.iterrows(): s3.write(f"- {row['고유이름'].split(' (')[0]} ({row['승률']:.1f}%)")
-            
-            up_king = h_match[(h_match['단계'] == '본선') & (h_match['승패'] == '승') & (h_match['업셋여부'] == 'Y')].groupby('기준_고유').size().reset_index(name='업셋').sort_values('업셋', ascending=False).head(10)
-            s4.error("⚡ **[자이언트 킬러]**\n\n본선 업셋 승리 Top 10")
-            for i, row in up_king.iterrows(): s4.write(f"- {row['기준_고유'].split(' (')[0]} ({row['업셋']}회)")
-
-            st.divider()
-            st.markdown(f"### 📋 {my_team} 소속 선수 전체 로스터")
-            roster = h_db.groupby('고유이름').agg(
-                출전대회=('대회명', 'nunique'), 누적레이팅=('레이팅(PT)', 'sum'), 평균레이팅=('레이팅(PT)', 'mean'), 평균승률=('예선_승률(%)', 'mean'), 본선최고순위=('본선_순위(숫자)', lambda x: x[x>0].min() if len(x[x>0]) > 0 else None)
-            ).reset_index().sort_values('누적레이팅', ascending=False).reset_index(drop=True)
-            roster.index += 1
-            st.dataframe(roster, use_container_width=True)
-            
-            with st.form("club_comment_form", clear_on_submit=True):
-                cc1, cc2 = st.columns([1, 4])
-                with cc1: author = st.text_input("닉네임 (익명 가능)", placeholder="예: 열혈팬")
-                with cc2: content = st.text_input("응원 남기기", placeholder="우리 클럽 파이팅!!")
-                if st.form_submit_button("📝 단체 코멘트 등록"):
-                    if content.strip():
-                        new_c = pd.DataFrame([{"대상클럽": my_team, "작성자": author if author else "익명", "내용": content, "작성일시": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}])
-                        st.session_state.club_comment_db = pd.concat([st.session_state.club_comment_db, new_c], ignore_index=True)
-                        st.session_state.club_comment_db.to_csv(CLUB_COMMENT_DB_FILE, index=False, encoding='utf-8-sig')
-                        st.success("등록 완료!"); st.rerun()
-
-# ================= TAB 3: 1인 통합 개인 분석 =================
-with tabs[3]:
-    st.subheader(f"🎮 1인 통합 정밀 분석실")
+# ================= TAB 1: 1인 통합 개인 분석 =================
+with tabs[1]:
+    st.subheader("🎮 1인 통합 정밀 분석실 (전적 검색)")
     if not global_db.empty:
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -367,7 +281,7 @@ with tabs[3]:
             """, unsafe_allow_html=True)
 
             st.markdown(f"#### 🔬 세이버메트릭스 심층 분석 리포트")
-            st.info("💡 **그래프 대신 직관적인 해설을 제공합니다!** 전체 펜서(최소 5경기 출전자)의 통계를 바탕으로 우리 선수의 폼이 전체 생태계 중 어디에 속하는지 직관적인 등급(S/A/B/C)으로 해석해 줍니다.")
+            st.info("💡 **그래프 대신 직관적인 해설을 제공합니다!** 전체 펜서의 통계를 바탕으로 우리 선수의 폼이 전체 생태계 중 어디에 속하는지 직관적인 등급(S/A/B/C)으로 해석해 줍니다.")
             
             tot_tournaments = len(p_data)
             tot_matches = p_data['예선_승'].sum() + p_data['예선_패'].sum()
@@ -772,90 +686,8 @@ with tabs[3]:
                     st.session_state.comment_db.to_csv(COMMENT_DB_FILE, index=False, encoding='utf-8-sig')
                     st.rerun()
 
-# ================= TAB 4: 1:1 라이벌 비교 =================
-with tabs[4]:
-    st.subheader("⚔️ 1:1 라이벌 정밀 비교 & AI 가상 승부 예측")
-    if not global_db.empty:
-        c1, c2 = st.columns(2)
-        with c1: 
-            sel_d_a = st.selectbox("1. 🔴 A 대분류", ["전체"] + sorted(list(global_db['부수'].dropna().unique())), key="da")
-            db_a = global_db if sel_d_a == "전체" else global_db[global_db['부수'] == sel_d_a]
-            sel_t_a = st.selectbox("2. 🔴 A 클럽", ["전체"] + sorted(list(db_a['소속팀'].dropna().unique())), key="ta")
-            if sel_t_a != "전체": db_a = db_a[db_a['소속팀'] == sel_t_a]
-            pA = st.selectbox("3. 🔴 선수 A 선택", ["선택"] + sorted(list(db_a['고유이름'].dropna().unique())), key="pa")
-
-        with c2: 
-            sel_d_b = st.selectbox("1. 🔵 B 대분류", ["전체"] + sorted(list(global_db['부수'].dropna().unique())), key="db")
-            db_b = global_db if sel_d_b == "전체" else global_db[global_db['부수'] == sel_d_b]
-            sel_t_b = st.selectbox("2. 🔵 B 클럽", ["전체"] + sorted(list(db_b['소속팀'].dropna().unique())), key="tb")
-            if sel_t_b != "전체": db_b = db_b[db_b['소속팀'] == sel_t_b]
-            pB = st.selectbox("3. 🔵 선수 B 선택", ["선택"] + sorted(list(db_b['고유이름'].dropna().unique())), key="pb")
-        
-        st.divider()
-
-        if pA != "선택" and pB != "선택":
-            if pA == pB:
-                st.warning("같은 선수를 선택했습니다. 다른 선수를 골라주세요!")
-            else:
-                h2h = global_match[(global_match['기준_고유'] == pA) & (global_match['상대_고유'] == pB)]
-                st.markdown(f"<h3 style='text-align: center;'>🥊 [{pA.split(' (')[0]}] vs [{pB.split(' (')[0]}] 자존심 매치!</h3>", unsafe_allow_html=True)
-                
-                if not h2h.empty:
-                    a_tot = len(h2h[h2h['승패'] == '승'])
-                    b_tot = len(h2h[h2h['승패'] == '패'])
-                    st.success(f"🔥 **종합 전적: 총 {len(h2h)}전 ➡️ 🔴 {pA.split(' (')[0]} {a_tot}승 / 🔵 {pB.split(' (')[0]} {b_tot}승**")
-                    
-                    df_h2h = h2h[['대회일자', '대회명', '단계', '라운드', '기준득점', '상대득점', '승패']].sort_values('대회일자', ascending=False).reset_index(drop=True)
-                    df_h2h['승리자'] = df_h2h['승패'].apply(lambda x: f"🔴 {pA.split(' (')[0]} 승리" if x == '승' else f"🔵 {pB.split(' (')[0]} 승리")
-                    df_h2h['매치 스코어'] = df_h2h.apply(lambda r: f"{str(r['기준득점']).replace('.0','')} : {str(r['상대득점']).replace('.0','')}" if str(r['기준득점']) not in ["-", "V", "D"] else "스코어 확인불가", axis=1)
-                    st.dataframe(df_h2h[['대회일자', '대회명', '단계', '라운드', '매치 스코어', '승리자']], use_container_width=True, hide_index=True)
-                else:
-                    st.info("💡 공식 맞대결 기록이 없습니다. AI 가상 시뮬레이션을 진행합니다!")
-                    a_data, b_data = global_db[global_db['고유이름'] == pA], global_db[global_db['고유이름'] == pB]
-                    a_pt, a_wr = a_data['레이팅(PT)'].sum(), a_data['예선_승률(%)'].mean()
-                    b_pt, b_wr = b_data['레이팅(PT)'].sum(), b_data['예선_승률(%)'].mean()
-                    score_a = (a_pt * 0.5) + (a_wr * 2.0)
-                    score_b = (b_pt * 0.5) + (b_wr * 2.0)
-                    if score_a + score_b == 0: prob_a, prob_b = 50.0, 50.0
-                    else: prob_a = (score_a / (score_a + score_b)) * 100; prob_b = 100 - prob_a
-                    st.markdown(f"<h3 style='text-align: center;'>🤖 AI 승률 예측: 🔴 {pA.split(' (')[0]} {prob_a:.1f}% vs 🔵 {pB.split(' (')[0]} {prob_b:.1f}%</h3>", unsafe_allow_html=True)
-                    st.progress(prob_a / 100)
-
-# ================= TAB 5: 시뮬레이터 (명단 복붙) =================
-with tabs[5]:
-    st.subheader("🔮 다자간 파워 시드 시뮬레이터 (명단 복사/붙여넣기)")
-    if not global_db.empty:
-        raw_names_input = st.text_area("📋 출전 명단을 복사해서 붙여넣으세요.", height=150, placeholder="홍길동\n이순신")
-        if st.button("🚀 명단 분석 및 랭킹 예측 가동"):
-            if raw_names_input.strip():
-                raw_names_list = list(dict.fromkeys([n.strip() for n in re.split(r'[,\n]+', raw_names_input) if n.strip()]))
-                matched_uids, unmatched_names = [], []
-                all_uids = global_db['고유이름'].dropna().unique()
-                
-                for name in raw_names_list:
-                    name_clean = name.split('(')[0].strip()
-                    matches = global_db[global_db['이름'] == name_clean]
-                    if matches.empty:
-                        if name in all_uids: matched_uids.append(name)
-                        else: unmatched_names.append(name)
-                    else:
-                        best_match = matches.groupby('고유이름')['레이팅(PT)'].sum().idxmax()
-                        if best_match not in matched_uids: matched_uids.append(best_match)
-
-                if matched_uids or unmatched_names:
-                    sim_rows = []
-                    sim_db = global_db[global_db['고유이름'].isin(matched_uids)]
-                    if not sim_db.empty:
-                        ss = sim_db.groupby('고유이름').agg(누적PT=('레이팅(PT)', 'sum'), 승률=('예선_승률(%)', 'mean')).reset_index()
-                        for _, row in ss.iterrows(): sim_rows.append({"참가선수": row['고유이름'], "누적PT": row['누적PT'], "승률": row['승률']})
-                    for un in unmatched_names: sim_rows.append({"참가선수": f"{un} (기록없음 뉴비)", "누적PT": 0.0, "승률": 0.0})
-                        
-                    res_df = pd.DataFrame(sim_rows).sort_values(by=['누적PT', '승률'], ascending=[False, False]).reset_index(drop=True)
-                    res_df.index += 1
-                    st.dataframe(res_df, column_config={"누적PT": st.column_config.NumberColumn("누적 레이팅", format="%.1f pt"), "승률": st.column_config.NumberColumn("평균 승률", format="%.1f%%")}, use_container_width=True)
-
-# ================= TAB 6: 데이터 관리 =================
-with tabs[6]:
+# ================= TAB 2: 데이터 관리 =================
+with tabs[2]:
     st.subheader("⚙️ 데이터 관리 센터 (엑셀 업로드)")
     if not st.session_state.admin_auth:
         st.error("🔒 좌측 사이드바에서 비밀번호를 입력해야 접속할 수 있습니다.")
@@ -890,7 +722,7 @@ with tabs[6]:
                 def format_val(x):
                     import datetime
                     if pd.isna(x): return ""
-                    # 💡 [핵심 패치] 엑셀이 15:11을 시간(datetime)으로 맘대로 바꾼 경우 점수로 강제 복원
+                    # 💡 [엑셀 버그 방어] 엑셀이 15:11을 시간으로 맘대로 바꾼 경우 점수로 강제 복원
                     if isinstance(x, (datetime.time, datetime.datetime)):
                         return f"{x.hour}:{x.minute}"
                     v = str(x).strip()
@@ -1108,7 +940,7 @@ with tabs[6]:
                                             for wr in w_rows:
                                                 for lr in l_rows:
                                                     if abs(wr - lr) <= 16:
-                                                        # 💡 [신규 패치] 복원해낸 "15:11" 형태의 스코어를 대진표 주변에서 정밀 탐색
+                                                        # 💡 본선 점수 정밀 스캔 로직
                                                         for r_scan in range(max(0, wr-2), min(df.shape[0], wr+3)):
                                                             for c_scan in range(max(0, c-1), min(df.shape[1], c+2)):
                                                                 cell_val = str(df.iloc[r_scan, c_scan]).strip()

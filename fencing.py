@@ -14,7 +14,7 @@ st.title("🤺 WIN.GG (윈닷지지) - 전국 펜싱 통합 데이터랩")
 st.markdown("전국 펜싱인들의 전적 검색 및 커뮤니티 플랫폼")
 
 
-================= 🗄️ 데이터베이스 및 기본 설정 =================
+# ================= 🗄️ 데이터베이스 및 기본 설정 =================
 PLAYER_DB_FILE = "fencing_player_db.csv"
 MATCH_DB_FILE = "fencing_match_db.csv"
 COMMENT_DB_FILE = "fencing_comment_db.csv"

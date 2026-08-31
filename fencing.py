@@ -99,7 +99,6 @@ if not global_match.empty:
     global_match['상대_고유'] = global_match['상대선수'] + " (" + global_match['상대팀'].fillna("소속불명") + ")"
 
 # ================= 🎯 UI 탭 구성 =================
-# 불필요한 탭 삭제 후 3개 핵심 탭으로 집중
 tabs = st.tabs([
     "🏆 종합 랭킹 보드", 
     "🎮 1인 통합분석 (스탯/칭호)", 
@@ -722,7 +721,6 @@ with tabs[2]:
                 def format_val(x):
                     import datetime
                     if pd.isna(x): return ""
-                    # 💡 [엑셀 버그 방어] 엑셀이 15:11을 시간으로 맘대로 바꾼 경우 점수로 강제 복원
                     if isinstance(x, (datetime.time, datetime.datetime)):
                         return f"{x.hour}:{x.minute}"
                     v = str(x).strip()
@@ -932,7 +930,7 @@ with tabs[2]:
                                         w_name, l_name = w['이름'], l['이름']
                                         w_score, l_score = "-", "-"
                                         
-                                     found = False
+                                        found = False
                                         score_str = None
                                         
                                         for c in range(df.shape[1]):
@@ -942,7 +940,6 @@ with tabs[2]:
                                             for wr in w_rows:
                                                 for lr in l_rows:
                                                     if abs(wr - lr) <= 16:
-                                                        # 💡 상세 점수 누락 완벽 해결: format_val 필터를 씌워 15:11:00 같은 찌꺼기를 점수로 복원
                                                         for r_scan in range(max(0, wr-2), min(df.shape[0], wr+3)):
                                                             for c_scan in range(max(0, c-1), min(df.shape[1], c+2)):
                                                                 cell_val = format_val(df.iloc[r_scan, c_scan])
@@ -970,7 +967,7 @@ with tabs[2]:
                                         
                                         if w_score == "-" and l_score == "-":
                                             w_score, l_score = "V", "D"
-                                        
+                                            
                                         new_matches.append({'대회일자': str(t_date_str), '대회명': t_name, '부수': sheet_name, '기준선수': w['이름'], '기준팀': w['소속팀'], '상대선수': l['이름'], '상대팀': l['소속팀'], '승패': '승', '단계': '본선', '업셋여부': is_up, '진땀승':'N', '라운드': round_name, '기준득점': w_score, '상대득점': l_score})
                                         new_matches.append({'대회일자': str(t_date_str), '대회명': t_name, '부수': sheet_name, '기준선수': l['이름'], '기준팀': l['소속팀'], '상대선수': w['이름'], '상대팀': w['소속팀'], '승패': '패', '단계': '본선', '업셋여부': 'N', '진땀승':'N', '라운드': round_name, '기준득점': l_score, '상대득점': w_score})
                                         nr.append(w)

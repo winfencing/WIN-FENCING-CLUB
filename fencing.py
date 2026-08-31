@@ -22,7 +22,7 @@ CLUB_COMMENT_DB_FILE = "fencing_club_comment_db.csv"
 SCHEDULE_DB_FILE = "fencing_schedule_db.csv"
 PROFILE_DB_FILE = "fencing_profile_db.csv"
 
-🌟 관리자 인증 및 사이드바
+# 🌟 관리자 인증 및 사이드바
 if 'admin_auth' not in st.session_state:
 st.session_state.admin_auth = False
 

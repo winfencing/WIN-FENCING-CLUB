@@ -104,19 +104,7 @@ if not global_match.empty:
     global_match['기준_고유'] = global_match['기준선수'] + " (" + global_match['기준팀'].fillna("소속불명") + ")"
     global_match['상대_고유'] = global_match['상대선수'] + " (" + global_match['상대팀'].fillna("소속불명") + ")"
 
-sel_year = "전체 (통산 누적)"
-
-with st.sidebar:
-    st.header("🔍 시즌제 통합 필터")
-    if not global_db.empty:
-        years_list = sorted(list(global_db['연도'].unique()), reverse=True)
-        sel_year = st.selectbox("📅 시즌 (연도) 선택", ["전체 (통산 누적)"] + years_list)
-        if sel_year != "전체 (통산 누적)":
-            global_db = global_db[global_db['연도'] == sel_year]
-            global_match = global_match[global_match['연도'] == sel_year]
-            st.info(f"💡 현재 랭킹 및 티어는 **[{sel_year}년도]** 성적만으로 산출 중입니다.")
-        else:
-            st.info("💡 현재 랭킹 및 티어는 **역대 통산** 기록으로 산출 중입니다.")
+sel_year = "전체 (통산 누적)" # 다른 탭(명전/방명록 등)의 제목 에러 방지용 호환 변수
 
 # ================= 🎯 UI 탭 구성 =================
 tabs = st.tabs([
@@ -152,29 +140,53 @@ with tabs[0]:
 
 # ================= TAB 1: 종합 랭킹 =================
 with tabs[1]:
-    st.subheader(f"🏆 종합 랭킹 보드 {'['+sel_year+' 시즌]' if sel_year != '전체 (통산 누적)' else '[역대 통산 누적]'}")
+    st.subheader("🏆 종합 랭킹 보드")
     if not global_db.empty:
+        # 💡 [신규] 랭킹 보드 전용 연도 및 부수 필터
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            years_list = sorted(list(global_db['연도'].unique()), reverse=True)
+            tab1_year = st.selectbox("📅 시즌 (연도) 선택", ["전체 (통산 누적)"] + years_list, key="tab1_year")
+        with f_col2:
+            divs_list = sorted(list(global_db['부수'].dropna().unique()))
+            tab1_div = st.selectbox("🤺 부수 (종목) 선택", ["전체 통합"] + divs_list, key="tab1_div")
+            
+        # 선택한 필터에 맞게 랭킹 데이터 자르기
+        tab1_db = global_db.copy()
+        if tab1_year != "전체 (통산 누적)":
+            tab1_db = tab1_db[tab1_db['연도'] == tab1_year]
+        if tab1_div != "전체 통합":
+            tab1_db = tab1_db[tab1_db['부수'] == tab1_div]
+            
+        st.markdown(f"**조회 기준:** 🎯 {tab1_year} | ⚔️ {tab1_div}")
+        st.divider()
+
         c1, c2 = st.columns([1, 1])
         with c1:
             st.markdown("#### 🏢 전국 클럽 파워 스탯 랭킹")
-            cs = global_db.groupby('소속팀').agg(
-                총원=('고유이름', 'nunique'), 합산PT=('레이팅(PT)', 'sum'), 평균PT=('레이팅(PT)', 'mean'),
-                금메달=('본선_순위(숫자)', lambda x: (x.dropna() == 1).sum()), 은메달=('본선_순위(숫자)', lambda x: (x.dropna() == 2).sum()), 동메달=('본선_순위(숫자)', lambda x: x.dropna().isin([3, 4]).sum())
-            ).reset_index().sort_values(by='합산PT', ascending=False).reset_index(drop=True)
-            cs.index += 1
-            st.dataframe(cs, column_config={"합산PT": st.column_config.NumberColumn("합산 레이팅", format="%.0f pt"), "평균PT": st.column_config.NumberColumn("클럽 평균전력", format="%.1f pt")}, use_container_width=True)
+            if not tab1_db.empty:
+                cs = tab1_db.groupby('소속팀').agg(
+                    총원=('고유이름', 'nunique'), 합산PT=('레이팅(PT)', 'sum'), 평균PT=('레이팅(PT)', 'mean'),
+                    금메달=('본선_순위(숫자)', lambda x: (x.dropna() == 1).sum()), 은메달=('본선_순위(숫자)', lambda x: (x.dropna() == 2).sum()), 동메달=('본선_순위(숫자)', lambda x: x.dropna().isin([3, 4]).sum())
+                ).reset_index().sort_values(by='합산PT', ascending=False).reset_index(drop=True)
+                cs.index += 1
+                st.dataframe(cs, column_config={"합산PT": st.column_config.NumberColumn("합산 레이팅", format="%.0f pt"), "평균PT": st.column_config.NumberColumn("클럽 평균전력", format="%.1f pt")}, use_container_width=True)
+            else:
+                st.info("조건에 맞는 클럽 데이터가 없습니다.")
 
         with c2:
             st.markdown("#### 🤺 선수 종합 스탯 랭킹 (전국 통합)")
-            ps = global_db.sort_values('대회일자').groupby('고유이름').agg(
-                소속팀=('소속팀', 'last'), 출전=('대회명', 'nunique'), 합산PT=('레이팅(PT)', 'sum'), 
-                평균PT=('레이팅(PT)', 'mean'), 승률=('예선_승률(%)', 'mean')
-            ).reset_index().sort_values(by='합산PT', ascending=False).reset_index(drop=True)
-            ps.index += 1
-            st.dataframe(ps, column_config={"합산PT": st.column_config.NumberColumn("합산 레이팅", format="%.0f pt"), "평균PT": st.column_config.NumberColumn("평균 레이팅", format="%.1f pt"), "승률": st.column_config.NumberColumn("평균 승률", format="%.1f%%")}, use_container_width=True)
+            if not tab1_db.empty:
+                ps = tab1_db.sort_values('대회일자').groupby('고유이름').agg(
+                    소속팀=('소속팀', 'last'), 출전=('대회명', 'nunique'), 합산PT=('레이팅(PT)', 'sum'), 
+                    평균PT=('레이팅(PT)', 'mean'), 승률=('예선_승률(%)', 'mean')
+                ).reset_index().sort_values(by='합산PT', ascending=False).reset_index(drop=True)
+                ps.index += 1
+                st.dataframe(ps, column_config={"합산PT": st.column_config.NumberColumn("합산 레이팅", format="%.0f pt"), "평균PT": st.column_config.NumberColumn("평균 레이팅", format="%.1f pt"), "승률": st.column_config.NumberColumn("평균 승률", format="%.1f%%")}, use_container_width=True)
+            else:
+                st.info("조건에 맞는 선수 데이터가 없습니다.")
     else:
         st.warning("등록된 데이터가 없습니다. 관리자 탭에서 엑셀을 업로드 해주세요.")
-
 # ================= TAB 2: 클럽 분석 =================
 with tabs[2]:
     st.subheader(f"🏢 클럽 정밀 분석 & 명예의 전당 ({sel_year} 기준)")
